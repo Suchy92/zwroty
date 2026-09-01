@@ -70,13 +70,17 @@ textarea{width:100%;height:120px;font:14px ui-monospace,monospace;border:2px sol
 
 <!-- 0. START -->
 <div class="screen on" id="s0">
-  <div style="display:flex;gap:8px;margin-bottom:14px">
-    <button class="btn" id="bMZwrot" style="flex:1">🔄 Zwrot</button>
-    <button class="btn alt" id="bMZam" style="flex:1">🛒 Zamówienie</button>
-  </div>
+  <h2 style="text-align:center;margin:6px 0 10px;color:#c0392b">ZWROTY</h2>
   <button class="btn go" id="bModeSingle">Pojedynczy zwrot</button>
   <button class="btn alt" id="bModeBatch">Wiele zwrotów naraz</button>
-  <div class="chip" style="margin-top:14px">W trybie „Wiele zwrotów" obsługiwane są tylko pliki PDF (tekstowe) i Excel. Skany i zdjęcia rób w trybie pojedynczym.</div>
+  <div class="chip" style="margin-top:10px">W trybie „Wiele zwrotów" obsługiwane są tylko pliki PDF (tekstowe) i Excel. Skany i zdjęcia rób w trybie pojedynczym.</div>
+
+  <hr style="border:none;border-top:2px solid #ddd;margin:22px 0">
+
+  <h2 style="text-align:center;margin:6px 0 10px;color:#1e6fc0">ZAMÓWIENIE</h2>
+  <button class="btn go" id="bOrdSingle">Wprowadź zamówienie</button>
+  <button class="btn alt" id="bOrdBatch">Wiele zamówień naraz</button>
+  <div class="chip" style="margin-top:10px">W trybie „Wiele zamówień" obsługiwane są tylko pliki PDF (tekstowe) i Excel.</div>
 </div>
 
 <!-- 1. KLIENT -->
@@ -228,8 +232,10 @@ function pick(a){
 }
 $('q').oninput=e=>render(e.target.value);
 render();
-$('bModeSingle').onclick=()=>go(1);
-$('bModeBatch').onclick=()=>go(6);
+$('bModeSingle').onclick=()=>{setTryb('zwrot');go(1);};
+$('bModeBatch').onclick=()=>{setTryb('zwrot');go(6);};
+$('bOrdSingle').onclick=()=>{setTryb('zam');go(1);};
+$('bOrdBatch').onclick=()=>{setTryb('zam');go(6);};
 
 /* ---------- 2. zrodlo ---------- */
 $('bFile').onclick=()=>$('fFile').click();
@@ -850,13 +856,7 @@ const DEFAULT_HOOK="https://trigger.macrodroid.com/568786bb-a7ce-4976-9fd2-a1f81
 function getHook(){ return localStorage.getItem('zw_hook') || DEFAULT_HOOK; }
 function getTryb(){ return localStorage.getItem('zw_tryb')||'zwrot'; }
 function setTryb(t){ localStorage.setItem('zw_tryb',t); paintTryb(); }
-function paintTryb(){
-  var t=getTryb(), z=$('bMZwrot'), a=$('bMZam'), tag=$('modeTag');
-  if(z&&a){ z.className='btn'+(t==='zwrot'?'':' alt'); a.className='btn'+(t==='zam'?'':' alt'); }
-  if(tag) tag.textContent = (t==='zam'?'ZAMÓWIENIE':'ZWROT');
-}
-if($('bMZwrot')) $('bMZwrot').onclick=function(){setTryb('zwrot');};
-if($('bMZam'))   $('bMZam').onclick=function(){setTryb('zam');};
+function paintTryb(){ var tag=$('modeTag'); if(tag) tag.textContent=(getTryb()==='zam'?'ZAMÓWIENIE':'ZWROT'); }
 paintTryb();
 function getSendMode(){ return localStorage.getItem('zw_sendmode') || 'buffer'; }
 function cfgLabel(){ $('cfgSendLbl').textContent = $('cfgSend').checked ? 'Wyślij do firmy' : 'Zapis do bufora'; }
