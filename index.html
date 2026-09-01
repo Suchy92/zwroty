@@ -63,13 +63,17 @@ textarea{width:100%;height:120px;font:14px ui-monospace,monospace;border:2px sol
 <body>
 <header>
   <button class="back" id="back" style="visibility:hidden">&#8592;</button>
-  <h1>Zwroty <span class="sub" id="hsub"></span></h1><span class="sub" style="opacity:.5">v6</span>
+  <h1>Zwroty <span class="sub" id="hsub"></span> <span id="modeTag" style="font-size:12px;font-weight:700;color:#c0392b"></span></h1><span class="sub" style="opacity:.5">v6</span>
   <button class="back" id="bCfg" title="Ustawienia">&#9881;</button>
 </header>
 <div class="wrap">
 
 <!-- 0. START -->
 <div class="screen on" id="s0">
+  <div style="display:flex;gap:8px;margin-bottom:14px">
+    <button class="btn" id="bMZwrot" style="flex:1">🔄 Zwrot</button>
+    <button class="btn alt" id="bMZam" style="flex:1">🛒 Zamówienie</button>
+  </div>
   <button class="btn go" id="bModeSingle">Pojedynczy zwrot</button>
   <button class="btn alt" id="bModeBatch">Wiele zwrotów naraz</button>
   <div class="chip" style="margin-top:14px">W trybie „Wiele zwrotów" obsługiwane są tylko pliki PDF (tekstowe) i Excel. Skany i zdjęcia rób w trybie pojedynczym.</div>
@@ -653,7 +657,8 @@ $('bCopyRaw').onclick=()=>{ copy(rawText); alert('Odczyt OCR skopiowany do schow
 function mergeByEan(list){var map={},out=[];list.forEach(function(i){var e=i.ean||'';if(e&&map[e]){map[e].qty+=(+i.qty||0);return;}var c=Object.assign({},i,{qty:(+i.qty||0)});if(e)map[e]=c;out.push(c);});return out;}
 function payload(){ return client.a+'#'+mergeByEan(items).filter(i=>i.ean.length>=8).map(i=>i.ean+';'+i.qty).join('|'); }
 function fireMacro(){
-  fetch(getHook(), {mode:'no-cors'}).catch(()=>{});
+  const h=getHook(); const sep=h.indexOf('?')>=0?'&':'?';
+  fetch(h+sep+'tryb='+getTryb(), {mode:'no-cors'}).catch(()=>{});
 }
 function copy(t){
   const ta=document.createElement('textarea'); ta.value=t; ta.style.position='fixed'; ta.style.opacity=0;
@@ -843,6 +848,16 @@ $('bBatchSend').onclick=()=>{
 /* ---------- USTAWIENIA (ekran 9) ---------- */
 const DEFAULT_HOOK="https://trigger.macrodroid.com/568786bb-a7ce-4976-9fd2-a1f815f28831/zwroty";
 function getHook(){ return localStorage.getItem('zw_hook') || DEFAULT_HOOK; }
+function getTryb(){ return localStorage.getItem('zw_tryb')||'zwrot'; }
+function setTryb(t){ localStorage.setItem('zw_tryb',t); paintTryb(); }
+function paintTryb(){
+  var t=getTryb(), z=$('bMZwrot'), a=$('bMZam'), tag=$('modeTag');
+  if(z&&a){ z.className='btn'+(t==='zwrot'?'':' alt'); a.className='btn'+(t==='zam'?'':' alt'); }
+  if(tag) tag.textContent = (t==='zam'?'ZAMÓWIENIE':'ZWROT');
+}
+if($('bMZwrot')) $('bMZwrot').onclick=function(){setTryb('zwrot');};
+if($('bMZam'))   $('bMZam').onclick=function(){setTryb('zam');};
+paintTryb();
 function getSendMode(){ return localStorage.getItem('zw_sendmode') || 'buffer'; }
 function cfgLabel(){ $('cfgSendLbl').textContent = $('cfgSend').checked ? 'Wyślij do firmy' : 'Zapis do bufora'; }
 function cfgLoad(){
