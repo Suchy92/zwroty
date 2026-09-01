@@ -1,0 +1,866 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<title>Zwroty</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.1.0/tesseract.min.js"></script>
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;font:16px/1.4 system-ui,sans-serif;background:#eef1f6;color:#111}
+header{background:#12305c;color:#fff;padding:14px 16px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:10}
+header h1{font-size:18px;margin:0;flex:1}
+header .sub{font-size:12px;opacity:.75;font-weight:400}
+.back{background:#274a80;border:0;color:#fff;font-size:20px;width:40px;height:40px;border-radius:8px}
+.wrap{padding:12px;max-width:820px;margin:0 auto}
+.screen{display:none}.screen.on{display:block}
+input[type=search],input[type=text]{width:100%;padding:14px;font-size:17px;border:2px solid #c3cbd9;border-radius:10px;background:#fff}
+.card{background:#fff;border-radius:10px;padding:12px 14px;margin-bottom:8px;border:1px solid #dde2ea}
+.card:active{background:#dbe6fb}
+.card b{display:block;font-size:15px}
+.card small{color:#5a6472;font-size:12px}
+mark{background:#ffe17a;color:#111;border-radius:3px;padding:0 1px}
+.card .ak{font:600 12px ui-monospace,monospace;color:#12305c;background:#e3ebf9;padding:2px 6px;border-radius:4px}
+.btn{display:block;width:100%;padding:18px;font-size:17px;font-weight:600;border:0;border-radius:12px;background:#12305c;color:#fff;margin-bottom:10px}
+.btn.alt{background:#fff;color:#12305c;border:2px solid #12305c}
+.btn.go{background:#0e7a3d;font-size:20px;padding:22px}
+.btn:disabled{opacity:.4}
+.chip{background:#e3ebf9;border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:14px}
+table{width:100%;border-collapse:collapse;background:#fff;border-radius:10px;overflow:hidden}
+td,th{padding:6px;border-bottom:1px solid #e6eaf0;font-size:15px}
+th{background:#f3f6fb;font-size:12px;text-align:left;color:#5a6472}
+td input{width:100%;padding:8px;border:1px solid #d3dae4;border-radius:6px;font:15px ui-monospace,monospace}
+td.q input{text-align:center}
+td.d{width:40px}
+.del{background:#fde3e3;color:#b32020;border:0;border-radius:6px;width:34px;height:34px;font-size:18px}
+.alts{margin-top:5px;font-size:11px;color:#5a6472}
+.altb{display:block;width:100%;margin-top:4px;padding:9px;border:2px solid #12305c;background:#fff;color:#12305c;border-radius:7px;font:600 14px ui-monospace,monospace}
+.hint{font:11px ui-monospace,monospace;color:#8a3b3b;margin-top:3px;word-break:break-all}
+.bad input{border-color:#e05a5a;background:#fff2f2}
+.new input{border-color:#e0a93a;background:#fffaf0}
+#status{padding:14px;background:#fff;border-radius:10px;text-align:center;font-size:15px}
+.bar{height:8px;background:#dde2ea;border-radius:4px;overflow:hidden;margin-top:8px}
+.bar i{display:block;height:100%;background:#12305c;width:0}
+.warn{background:#fff4d6;border:1px solid #e8c766;padding:10px;border-radius:8px;font-size:14px;margin-bottom:10px}
+.ok{background:#e2f5e9;border:1px solid #7dc79a;padding:10px;border-radius:8px;font-size:14px;margin-bottom:10px}
+.row2{display:flex;gap:8px}.row2 .btn{flex:1}
+textarea{width:100%;height:120px;font:14px ui-monospace,monospace;border:2px solid #c3cbd9;border-radius:10px;padding:10px}
+.setrow{background:#fff;border-radius:10px;padding:14px;margin-bottom:12px;border:1px solid #dde2ea}
+.setrow h3{margin:0 0 6px;font-size:15px}
+.setrow p{margin:0 0 10px;font-size:13px;color:#5a6472}
+.sw{display:flex;align-items:center;gap:12px;cursor:pointer}
+.sw input{display:none}
+.sw .tr{width:52px;height:30px;background:#c3cbd9;border-radius:15px;position:relative;transition:.2s;flex:none}
+.sw .tr::after{content:'';position:absolute;top:3px;left:3px;width:24px;height:24px;background:#fff;border-radius:50%;transition:.2s}
+.sw input:checked+.tr{background:#0e7a3d}
+.sw input:checked+.tr::after{left:25px}
+.sw b{font-size:15px}
+.wm{text-align:center;color:#9aa4b2;font-size:12px;margin:24px 0 10px;font-style:italic}
+</style>
+</head>
+<body>
+<header>
+  <button class="back" id="back" style="visibility:hidden">&#8592;</button>
+  <h1>Zwroty <span class="sub" id="hsub"></span></h1><span class="sub" style="opacity:.5">v6</span>
+  <button class="back" id="bCfg" title="Ustawienia">&#9881;</button>
+</header>
+<div class="wrap">
+
+<!-- 0. START -->
+<div class="screen on" id="s0">
+  <button class="btn go" id="bModeSingle">Pojedynczy zwrot</button>
+  <button class="btn alt" id="bModeBatch">Wiele zwrotów naraz</button>
+  <div class="chip" style="margin-top:14px">W trybie „Wiele zwrotów" obsługiwane są tylko pliki PDF (tekstowe) i Excel. Skany i zdjęcia rób w trybie pojedynczym.</div>
+</div>
+
+<!-- 1. KLIENT -->
+<div class="screen" id="s1">
+  <input type="search" id="q" placeholder="Szukaj: nazwa, akronim, ulica, miasto..." autocomplete="off">
+  <div id="cnt" style="font-size:12px;color:#5a6472;margin:8px 2px"></div>
+  <div id="list"></div>
+</div>
+
+<!-- 2. ZRODLO -->
+<div class="screen" id="s2">
+  <div class="chip" id="cli2"></div>
+  <button class="btn" id="bFile">Wczytaj plik (PDF / Excel)</button>
+  <button class="btn alt" id="bPhoto">Zrób zdjęcie dokumentu</button>
+  <button class="btn alt" id="bPaste">Wklej tekst ręcznie</button>
+  <input type="file" id="fFile" accept=".pdf,.xlsx,.xls,.csv" hidden>
+  <input type="file" id="fPhoto" accept="image/*" capture="environment" hidden>
+  <div id="pasteBox" style="display:none;margin-top:10px">
+    <textarea id="ta" placeholder="Wklej tu tekst dokumentu albo linie EAN;ilość"></textarea>
+    <button class="btn" id="bPasteGo">Rozpoznaj</button>
+  </div>
+</div>
+
+<!-- 3. PRZETWARZANIE -->
+<div class="screen" id="s3">
+  <div id="status">Przetwarzam...<div class="bar"><i id="pb"></i></div></div>
+</div>
+
+<!-- 4. POPRAWKI -->
+<div class="screen" id="s4">
+  <div class="chip" id="cli4"></div>
+  <div id="note"></div>
+  <table><thead><tr><th>#</th><th>Kod EAN</th><th style="width:80px">Ilość</th><th></th></tr></thead><tbody id="tb"></tbody></table>
+  <button class="btn alt" id="bAdd" style="margin-top:10px">+ Dodaj pozycję</button>
+  <button class="btn go" id="bSend">Wyślij do ZamSYNC &#9654;</button>
+  <div class="row2"><button class="btn alt" id="bRaw">Pokaż odczyt OCR</button><button class="btn alt" id="bCopyRaw">Kopiuj odczyt OCR</button></div>
+  <pre id="raw" style="display:none;white-space:pre-wrap;font-size:11px;background:#fff;padding:10px;border-radius:8px;max-height:300px;overflow:auto"></pre>
+</div>
+
+<!-- 6. BATCH: WYBOR PLIKOW -->
+<div class="screen" id="s6">
+  <div class="chip">Zaznacz kilka plików naraz (PDF tekstowe / Excel). Program sam rozpozna klienta z nagłówka każdego dokumentu.</div>
+  <button class="btn" id="bBatchPick">Wybierz pliki</button>
+  <input type="file" id="fBatch" accept=".pdf,.xlsx,.xls,.csv" multiple hidden>
+</div>
+
+<!-- 7. BATCH: KOLEJKA -->
+<div class="screen" id="s7">
+  <div id="batchStatus"></div>
+  <div id="batchList"></div>
+  <button class="btn go" id="bBatchSend" style="margin-top:14px">Wyślij wszystko do ZamSYNC &#9654;</button>
+  <button class="btn alt" id="bBatchAddMore">+ Dodaj kolejne pliki</button>
+</div>
+
+<!-- 5. GOTOWE -->
+<div class="screen" id="s5">
+  <div class="ok" id="doneMsg"></div>
+  <div class="warn">Teraz otwórz <b>ZamSYNC</b> i uruchom makro <b>Zwroty</b> (długie przytrzymanie ikony MacroDroid).</div>
+  <textarea id="payload" readonly></textarea>
+  <div class="row2">
+    <button class="btn" id="bCopy">Kopiuj ponownie</button>
+    <button class="btn alt" id="bDl">Zapisz do pliku</button>
+  </div>
+  <button class="btn alt" id="bNew">Nowy zwrot</button>
+</div>
+
+<!-- 9. USTAWIENIA -->
+<div class="screen" id="s9">
+  <div class="setrow">
+    <h3>Adres makra (webhook)</h3>
+    <p>Link, który uruchamia makro w MacroDroid. Zmieniaj tylko, jeśli wiesz, co robisz.</p>
+    <input type="text" id="cfgHook" placeholder="https://trigger.macrodroid.com/...">
+  </div>
+  <div class="setrow">
+    <h3>Tryb wysyłki</h3>
+    <p>Wyłączony = dokument zapisuje się tylko w buforze ZamSYNC (bezpiecznie, wysyłasz ręcznie). Włączony = makro samo wysyła do firmy. Uwaga: żeby to naprawdę zadziałało, trzeba jeszcze zaktualizować makro (krok&nbsp;2).</p>
+    <label class="sw"><input type="checkbox" id="cfgSend"><span class="tr"></span><b id="cfgSendLbl">Zapis do bufora</b></label>
+  </div>
+  <button class="btn" id="cfgSave">Zapisz ustawienia</button>
+  <div class="ok" id="cfgMsg" style="display:none">Zapisano.</div>
+  <div class="wm">Made in Białystok by Łukasz Sieradzki</div>
+</div>
+
+</div>
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+const CLIENTS=[{"a": "BIKCZAPL", "n": "''ASTEREK'' HANDEL ART. PRZEMYSŁOWYMI BARBARA CZAPLIŃSKA", "ad": "UL.KAWALERYJSKA 17 A lok. 50 i 51, 15-324 BIAŁYSTOK"}, {"a": "BIKMIKOM", "n": "''MIKOM'' ZIELINKO MALINOWSKI Sp. JAWNA", "ad": "UL. HETMAŃSKA 36 A, 15-727 BIAŁYSTOK"}, {"a": "BIKFLOR0", "n": "1. FLOREK Teresa Florczyk; 2. TEMAR Teresa  Florczyk - wspólnik spółki cywilnej", "ad": "ul. Nowosielska 40d, 15-617 Białystok"}, {"a": "BIKFLOR01", "n": "1. FLOREK Teresa Florczyk; 2. TEMAR Teresa  Florczyk - wspólnik spółki cywilnej", "ad": "ul. Pietkiewicza 13a, 15-689 Białystok"}, {"a": "BIKFLOR1", "n": "1. FLOREK Teresa Florczyk; 2. TEMAR Teresa  Florczyk - wspólnik spółki cywilnej", "ad": "ul. Białostocka 1, 16-060 Zabłudów"}, {"a": "BIKFLOR3", "n": "1. FLOREK Teresa Florczyk; 2. TEMAR Teresa  Florczyk - wspólnik spółki cywilnej", "ad": "ul. BIAŁOSTOCZEK 1/1, 15-869 Białystok"}, {"a": "BIKFLOR4", "n": "1. FLOREK Teresa Florczyk; 2. TEMAR Teresa  Florczyk - wspólnik spółki cywilnej", "ad": "ul. Wesoła 17/1, 15-307 Białystok"}, {"a": "BIKFLOR50", "n": "1. FLOREK Teresa Florczyk; 2. TEMAR Teresa  Florczyk - wspólnik spółki cywilnej", "ad": "ul. Nowosielska 50, 15-617 Bialystok"}, {"a": "SOADZIEW", "n": "AB9 Antoni Dziewiątkowski", "ad": "ul. Białostocka 129A, 16-100 Sokółka"}, {"a": "GRKADAR0", "n": "ADAR ŁUKASZEWICZ SPÓŁKA JAWNA", "ad": "UL. CHODKIEWICZÓW 10, 16-040 Gródek"}, {"a": "GRKADAR02", "n": "ADAR ŁUKASZEWICZ SPÓŁKA JAWNA", "ad": "UL. CHODKIEWICZÓW 49, 16-040 Gródek"}, {"a": "GRKADAR1", "n": "ADAR ŁUKASZEWICZ Spółka Jawna", "ad": "UL. Sowlańska 33, 15-560 Białystok"}, {"a": "BIKAEXO1", "n": "AEXOL SPÓŁKA Z OGRANICZONĄ ODPOWIEDZIALNOŚCIĄ", "ad": "ul. Józefa Bema 7 lokal 5, 15-411 BIAŁYSTOK"}, {"a": "BIKAEXOL", "n": "AEXOL SPÓŁKA Z OGRANICZONĄ ODPOWIEDZIALNOŚCIĄ", "ad": "ul. Mławska 4/U7, 15-411 BIAŁYSTOK"}, {"a": "BIKNOWIC1", "n": "AGD EXPERT", "ad": "ul. Aleksandra Węgierki 47, 15-175 BIAŁYSTOK"}, {"a": "BIKALBER", "n": "\"ALBERTUS\" WOJCIECH NIERODZIK", "ad": "ul. Nadawki 1A/5, 16-010 Wasilków"}, {"a": "BIKALFA1", "n": "\"ALFATOM\" GRZEGORZ ANDRZEJEWSKI", "ad": "UL.CZĘSTOCHOWSKA 14, 15-459 BIAŁYSTOK"}, {"a": "LAYAB999", "n": "ANDRZEJ BUDZISZ", "ad": "UL. Cmentarna 2, 18-100 ŁAPY"}, {"a": "BPIARH083", "n": "ARHELAN SPÓŁKA  Z  OGRANICZONĄ ODPOWIEDZIALNOŚCIA   SKLEP NR 083", "ad": "UL.DŁUGA 1A, 15-635 Klepacze"}, {"a": "BPIARH075", "n": "ARHELAN SPÓŁKA  Z  OGRANICZONĄ ODPOWIEDZIALNOŚCIĄ   SKLEP NR 075", "ad": "UL.STRAŻACKA 2, 19-100 Mońki"}, {"a": "BPIARH084", "n": "ARHELAN SPÓŁKA  Z  OGRANICZONĄ ODPOWIEDZIALNOŚCIĄ   SKLEP NR 084", "ad": "UL. 1000-lecia Państwa  Polskiego 12, 16-200 Dąbrowa Białostocka"}, {"a": "BPIARH107", "n": "ARHELAN SPÓŁKA  Z  OGRANICZONĄ ODPOWIEDZIALNOŚCIĄ   SKLEP NR 107", "ad": "UL. TRANSPORTOWA 2 D, 15-399 Białystok"}, {"a": "BPIARH104", "n": "ARHELAN SPÓŁKA  Z OGRANICZONĄ ODPOWIEDZIALNOŚCIA    SKLEP NR 104", "ad": "UL. POLOWA 7, 18-520 Stawiski"}, {"a": "BPIARH080", "n": "ARHELAN SPÓŁKA  Z OGRANICZONĄ ODPOWIEDZIALNOŚCIA   SKLEP NR 080", "ad": "UL.JAGIELLOŃSKA 2B, 19-120 Knyszyn"}, {"a": "BPIARH113", "n": "ARHELAN SPÓŁKA  Z OGRANICZONĄ ODPOWIEDZIALNOŚCIĄ  SKLEP NR 113", "ad": "ul. 3 Maja 38, 16-150 Suchowola"}, {"a": "BPIARH118", "n": "ARHELAN SPÓŁKA  Z OGRANICZONĄ ODPOWIEDZIALNOŚCIĄ SKLEP NR 118", "ad": "BIAŁOSTOCKA 1A, 16-061 Juchnowiec Górny"}, {"a": "BPIARH077", "n": "ARHELAN SPÓŁKA Z  OGRANICZONĄ ODPOWIEDZIALNOŚCIĄ  SKLEP NR 077", "ad": "DUBOIS 14, 15-472 BIAŁYSTOK"}, {"a": "BPIARH082", "n": "ARHELAN SPÓŁKA Z  OGRANICZONĄ ODPOWIEDZIALNOŚCIĄ  SKLEP NR 082", "ad": "UL. ZABłUDOWSKA 48, 15-585 BIAŁYSTOK"}, {"a": "BPIARH030", "n": "ARHELAN SPÓŁKA Z OGRANICZONĄ ODPOWIEDZIALNOŚCIĄ   SKLEP NR 030", "ad": "UL. RYBACKA 1, 19-110 Goniądz"}, {"a": "BPIARH044", "n": "ARHELAN SPÓŁKA Z OGRANICZONĄ ODPOWIEDZIALNOŚCIĄ   SKLEP NR 044", "ad": "UL.NOWA 20, 16-030 SUPRAŚL"}, {"a": "BPIARH063", "n": "ARHELAN SPÓŁKA Z OGRANICZONĄ ODPOWIEDZIALNOŚCIĄ   SKLEP NR 063", "ad": "UL. SIENKIEWICZA 28, 16-070 Choroszcz"}, {"a": "BPIARH116", "n": "ARHELAN SPÓŁKA Z OGRANICZONĄ ODPOWIEDZIALNOŚCIĄ   SKLEP NR 116", "ad": "ul. Filipowicza 6 lokal U2, 15-327 Białystok"}, {"a": "BPIARH020", "n": "ARHELAN SPÓŁKA Z OGRANICZONĄ ODPOWIEDZIALNOŚCIĄ  SKLEP NR 020", "ad": "PLAC 11 LISTOPADA 15, 16-050 MICHAŁOWO"}, {"a": "BPIARH032", "n": "ARHELAN SPÓŁKA Z OGRANICZONĄ ODPOWIEDZIALNOŚCIĄ  SKLEP NR 032", "ad": "UL.TYSIĄCLECIA 21/3, 19-100 MOŃKI"}, {"a": "BPIARH037", "n": "ARHELAN SPÓŁKA Z OGRANICZONĄ ODPOWIEDZIALNOŚCIĄ  SKLEP NR 037", "ad": "UL.JAGIENKI 4, 15-472 BIAŁYSTOK"}, {"a": "BPIARH045", "n": "ARHELAN SPÓŁKA Z OGRANICZONĄ ODPOWIEDZIALNOŚCIĄ  SKLEP NR 045", "ad": "UL.ŻURAWIA 15, 16-010 WASILKÓW"}, {"a": "BPIARH050", "n": "ARHELAN SPÓŁKA Z OGRANICZONĄ ODPOWIEDZIALNOŚCIĄ  SKLEP NR 050", "ad": "UL.CHROBREGO 10A, 15-057 BIAŁYSTOK"}, {"a": "BPIARH052", "n": "ARHELAN SPÓŁKA Z OGRANICZONĄ ODPOWIEDZIALNOŚCIĄ  SKLEP NR 052", "ad": "UL.WASZYNGTONA 27, 15-304 BIAŁYSTOK"}, {"a": "BPIARH053", "n": "ARHELAN SPÓŁKA Z OGRANICZONĄ ODPOWIEDZIALNOŚCIĄ  SKLEP NR 053", "ad": "UL. ŚW. ROCHA 6/1, 16-060 ZABŁUDÓW"}, {"a": "BPIARH062", "n": "ARHELAN SPÓŁKA Z OGRANICZONĄ ODPOWIEDZIALNOŚCIĄ  SKLEP NR 062", "ad": "UL. POLNA 10, 16-040 Gródek"}, {"a": "BPIARH066", "n": "ARHELAN SPÓŁKA Z OGRANICZONĄ ODPOWIEDZIALNOŚCIĄ  SKLEP NR 066", "ad": "UL. MUCHAWIECKA 2, 16-060 ZABŁUDÓW"}, {"a": "BPIARH068", "n": "ARHELAN SPÓŁKA Z OGRANICZONĄ ODPOWIEDZIALNOŚCIĄ  SKLEP NR 068", "ad": "UL. BIAŁOSTOCKA 23, 16-130 Janów"}, {"a": "BPIARH119", "n": "ARHELAN SPÓŁKA Z OGRANICZONĄ ODPOWIEDZIALNOŚCIĄ  SKLEP NR 119", "ad": "UL. JEŻYNOWA 2, 16-030 GRABÓWKA"}, {"a": "BPIARH139", "n": "ARHELAN SPÓŁKA Z OGRANICZONĄ ODPOWIEDZIALNOŚCIĄ SKLEP 139", "ad": "UL. PUSTA 38, 16-315 Lipsk"}, {"a": "BPIARH019", "n": "ARHELAN SPÓŁKA Z OGRANICZONĄ ODPOWIEDZIALNOŚCIĄ SKLEP NR 019", "ad": "UL.BIAŁOSTOCKA 126, 16-100 SOKÓŁKA"}, {"a": "BPIARH060", "n": "ARHELAN SPÓŁKA Z OGRANICZONĄ ODPOWIEDZIALNOŚCIĄ SKLEP NR 060", "ad": "UL.TADEUSZA KOŚCIUSZKI 3, 18-106 NIEWODNICA KORYCKA"}, {"a": "BPIARH136", "n": "ARHELAN SPÓŁKA Z OGRANICZONĄ ODPOWIEDZIALNOŚCIĄ SKLEP NR 136", "ad": "UL.Kościelna 26, 16-120 Krynki"}, {"a": "BPIARH137", "n": "ARHELAN SPÓŁKA Z OGRANICZONĄ ODPOWIEDZIALNOŚCIĄ SKLEP NR 137", "ad": "UL. LIPOWA 1, 19-122 Jasionówka"}, {"a": "BIKAR999", "n": "\" ARKADA \" ŁUKASZEWICZ SPÓŁKA JAWNA", "ad": "UL. SOWLAŃSKA 33, 15-560 BIAŁYSTOK"}, {"a": "BIKART99", "n": "\"ARTUR\" Artur i Adam Łukaszewicz spółka jawna", "ad": "UL. KMICICA 14, 15-562 BIAŁYSTOK"}, {"a": "BIKART00", "n": "\"ARTUR\" Artur i Adam Łukaszewicz spółka jawna SKLEP NR 1", "ad": "UL. SOWLAŃSKA 40, 15-560 BIAŁYSTOK"}, {"a": "BIKART01", "n": "\"ARTUR\" Artur i Adam Łukaszewicz spółka jawna SKLEP NR 2", "ad": "UL. MIESZKA I 14, 15-560 BIAŁYSTOK"}, {"a": "ASENANĄ OD", "n": "ASENA GROUP SPÓŁKA Z OGRANICZONĄ  ODPOWIEDZIALNOŚCIĄ", "ad": "16-060 Zabłudów"}, {"a": "BIKDELIK1", "n": "ASPO Hubert Andrejewicz  DELIKATESY CENTRUM", "ad": "ul. Gen. Zygmunta Berlinga 44, 15-814 Białystok"}, {"a": "BIKATD24", "n": "ATD24 SPÓŁKA Z OGRANICZONĄ ODPOWIEDZIALNOŚCIĄ", "ad": "ul. Upalna 1A/6, 15-668 Białystok"}, {"a": "BIKATD240", "n": "ATD24 SPÓŁKA Z OGRANICZONĄ ODPOWIEDZIALNOŚCIĄ", "ad": "ul. Powstania Styczniowego 10, 16-070 Choroszcz"}, {"a": "\"AUTOSZ RY", "n": "\"AUTO PLAY\" AGATA WIESŁAW ŁUKASZ RYGORCZUK SPÓŁKA  JAWNA", "ad": "ul. Cieliczańska 28, 16-030 Supraśl"}, {"a": "MIOMAJST0", "n": "B.P.W. \"CRAFT\" LECH BARSZCZEWSKI SKLEP PRZEMYSŁOWY NR 1", "ad": "UL.PLAC 11 LISTOPADA 15F, 16-050 MICHAŁOWO"}, {"a": "GEKMAJST", "n": "B.P.W. \"CRAFT\" LECH BARSZCZEWSKI SKLEP PRZEMYSŁOWY NR 2", "ad": "UL.ZARZECZAŃSKA 2, 16-040 GRÓDEK"}, {"a": "BIKBENMAR", "n": "Benmar Sp. z o.o.", "ad": "ul. ks. Jerzego Popiełuszki  117, 15-567 Białystok"}, {"a": "BIKBENMAR1", "n": "Benmar Sp. z o.o.", "ad": "ul. 42 Pułku Piechoty 8, 15-181 Białystok"}, {"a": "KLNBESTP", "n": "\"BESTPOL\" ŻURAKOWSKI I WSPÓLNICY SPÓŁKA JAWNA", "ad": "ul. Ojca Stefana Tarasiuka 5, 16-001 Kleosin"}, {"a": "BIKBIATO", "n": "BIATOM TOMASZ HANCZARUK", "ad": "UL.PLAŻOWA 91, 15-518 BIAŁYSTOK"}, {"a": "DAAKŁOS1", "n": "BIEBRZAŃSKIE PRZEDSIĘBIORSTWO NASIENNO-HANDLOWE  \"KŁOS\"  STANISŁAW REDUCHA", "ad": "UL.11-GO LISTOPADA 30, 16-200 DĄBROWA BIAŁOSTOCKA"}, {"a": "BINGOK", "n": "\"BINGO\" SYLWIA HRYSZKO", "ad": "ul. Sowlańska 40, 15-560 Białystok"}, {"a": "BIKBINGO", "n": "\"BINGO\" SYLWIA HRYSZKO  SKLEP NR 2", "ad": "ul. Mieszka I 14 lok 7, 15-054 Białystok"}, {"a": "BIKBRICO", "n": "BRICO EXPRESS SPÓŁKA Z OGRANICZONĄ  ODPOWIEDZIALNOŚCIĄ", "ad": "ul. Zabłudowska 71, 15-585 Białystok"}, {"a": "WAACARR3", "n": "\"CARREFOUR POLSKA\" SP. Z O.O.", "ad": "ul. JAGIELLOŃSKA 39, 85-097 Bydgoszcz"}, {"a": "JAYSYLWI", "n": "CATERING U SYLWII Sylwia Krukowska", "ad": "Jaświły 125, 19-124 Jaświły"}, {"a": "CARRE601", "n": "CE Convenience Kępsko przy drodze ekspresowej S3, w km 167+700 - strona lewa  S29", "ad": "przy drodze ekspresowej S3, w, 66-213 Kępsko"}, {"a": "CARRE600", "n": "CE Convenience Kępsko przy drodze ekspresowej S3, w km 167+700 - strona prawa  S28", "ad": "przy drodze ekspresowej S3, w, 66-213 Kępsko"}, {"a": "KNNMAGNU", "n": "CENTRUM HANDLOWE BEATA MAGNUSZEWSKA", "ad": "UL.SZKOLNA 4D, 19-120 KNYSZYN"}, {"a": "CHZKOMLAT", "n": "CENTRUM KOMŁA TERESA KOMŁA", "ad": "UL. POWSTANIA STYCZNIOWEGO 10, 16-070 CHOROSZCZ"}, {"a": "LIKARKA0", "n": "CENTRUM WIELOBRANŻOWE ARKA BOŻENA SKOKOWSKA", "ad": "KOSCIELNA 35, 16-315 LIPSK"}, {"a": "CHZCHORT", "n": "CHORTEN BIS KRZYSZTOF PAKUŁA, JAN SZYDŁOWSKI SP. J.", "ad": "UL.POWSTANIA STYCZNIOWEGO 12, 16-070 CHOROSZCZ"}, {"a": "TKACHORT", "n": "\"CHORTEN MAX\"  S.C. K.PAKUŁA, J.CIEPŁA, J.M.WOŁPIUK NIEWODNICA KORYCKA", "ad": "UL.KOŚCIUSZKI 7, 18-106 TUROŚŃ KOŚCIELNA"}, {"a": "TKACH999", "n": "\"CHORTEN MAX\" S.C. K.PAKUŁA, J.CIEPŁA, J.M.WOŁPIUK  NIEWODNICA KORYCKA", "ad": "UL.KOŚCIUSZKI 7, 18-106 TUROŚŃ KOŚCIELNA"}, {"a": "DOOCHORT", "n": "CHORTEN MW S.C. KRZYSZTOF PAKUŁA, JOLANTA CIEPŁA,  JOLANTA MARZANNA WOŁPIUK, DARIUSZ PAKUŁA", "ad": "ul. Królewska 3, 16-002 Dobrzyniewo Duże"}, {"a": "DOOCHORT1", "n": "CHORTEN MW S.C. KRZYSZTOF PAKUŁA, JOLANTA CIEPŁA,  JOLANTA MARZANNA WOŁPIUK, DARIUSZ PAKUŁA", "ad": "ul. Białostocka 29, 16-002 Dobrzyniewo Duże"}, {"a": "CHZCHRAJ", "n": "CHORTEN RAJ S.C.", "ad": "ul. Dominikańska 31A, 16-070 Choroszcz"}, {"a": "TREDACHY", "n": "Dachy Kamiński Sylwester Kamiński", "ad": "Nowa Wieś 128A, 19-104 Trzcianne"}, {"a": "BIKDAM01", "n": "DAMAR ŁUKASZEWICZ SPÓŁKA JAWNA", "ad": "ŁAGODNA 11, 15-560 Białystok"}, {"a": "BIKDAMAR", "n": "DAMAR ŁUKASZEWICZ SPÓŁKA JAWNA", "ad": "ul. Sowlańska 33, 15-560 Białystok"}, {"a": "BIKNOWIC99", "n": "DARIUSZ NOWICKI", "ad": "ul. Węgierska 22, 15-615 Białystok"}, {"a": "NOEDAVIS", "n": "DAYWIS&KRYJAN GARDENS S.C. MARIA RADZIWOŃSKA-KRYJAN, PIOTR KRYJAN", "ad": "UL.WASILKOWSKA 73, 16-010 NOWODWORCE"}, {"a": "DBADEBIU", "n": "\"DEBIUT\" SPÓŁKA CYWILNA EWA DZIETCZYK, PIOTR  DZIETCZYK", "ad": "ul. gen. Nikodema Sulika 4A, 16-200 Dąbrowa Białostocka"}, {"a": "SULMAKTU", "n": "DELIKATESY CENTRUM MAK-TUR SP. Z O.O.", "ad": "UL.CIELICZAŃSKA 2, 16-030 SUPRAŚL"}, {"a": "BIKELJA0", "n": "DELIKATESY ELJA SPÓŁKA CYWILNA  KRZYSZTOF JEDLIŃSKI, ELŻBIETA JEDLIŃSKA", "ad": "ul. Sienkiewicza 50/52, 15-004 Białystok"}, {"a": "BIKDELI1", "n": "DELIKATESY U CHŁOPCÓW SPÓŁKA CYWILNA", "ad": "ul. Jarzębinowa 22, 15-793 Białystok"}, {"a": "BIKDELIK", "n": "DELIKATESY U CHŁOPCÓW SPÓŁKA CYWILNA", "ad": "ul. Nowosielska 40D, 15-617 Bialystok"}, {"a": "RAWDELIK", "n": "DELIKATESY U CHŁOPCÓW SPÓŁKA CYWILNA", "ad": "ul. Plac 500 lecia 29, 19-213 Radziłów"}, {"a": "SOADELIK1", "n": "DELIKATESY UNIKAT", "ad": "UL.WYSZYŃSKIEGO 2, 16-100 Sokolka"}, {"a": "BIKTRADE", "n": "DelTrade S.C.", "ad": "Nowosielska 40d, 15-617 Białystok"}, {"a": "BIKTRAD1", "n": "DelTrade S.C. sklep", "ad": "Dobra 12, 15-034 Białystok"}, {"a": "BIKDMJS1", "n": "DMJ DUNAJ MARZANNA I JERZY SPÓŁKA JAWNA", "ad": "ul. Upalna 88a, 15-668 Białystok"}, {"a": "BIKDMJSJ", "n": "DMJ DUNAJ MARZANNA I JERZY SPÓŁKA JAWNA", "ad": "ul. Bolesława Chrobrego 16A/3, 15-057 Bialystok"}, {"a": "SULDOMEX", "n": "DOMEX TERESA SZMYDT", "ad": "UL.11.LISTOPADA 5, 16-030 SUPRAŚL"}, {"a": "BIKDUCH99", "n": "DUCH ALPHA SPÓŁKA CYWILNA", "ad": "ul. Nowosielska 40D, 15-617 Białystok"}, {"a": "NOEDUCHA", "n": "DUCH ALPHA SPÓŁKA CYWILNA  Lewiatan", "ad": "ul. Supraślska 68, 16-010 Nowodworce"}, {"a": "TYNDUCH1", "n": "DUCH BETA SPÓŁKA CYWILNA", "ad": "ul. Sokołowska 1, 16-080 Tykocin"}, {"a": "BIKDUCH999", "n": "DuCH GAMA SPÓŁKA CYWILNA", "ad": "ul. Nowosielska 40D, 15-617 Białystok"}, {"a": "TREDUCH1", "n": "DuCH GAMA SPÓŁKA CYWILNA", "ad": "ul. 3 Maja 24, 19-104 Trzcianne"}, {"a": "BIKDUCH9999", "n": "DuCh Omega Spółka Cywilna", "ad": "ul. Nowosielska 40d, 15-617 Białystok"}, {"a": "BIKSIG99", "n": "DuCh Sigma Spółka Cywilna", "ad": "ul. Nowosielska 40d, 15-617 Białystok"}, {"a": "NDRSIGMA", "n": "DuCh Sigma Spółka Cywilna", "ad": "ul. Plac Rynkowy 20, 16-205 Nowy Dwór"}, {"a": "SOASIGMA", "n": "DuCh Sigma Spółka Cywilna", "ad": "ul. Osiedle Centrum 17, 16-100 Sokółka"}, {"a": "BIKEDAR9", "n": "EDAR BONDARYK, BARANOWSKI I ŁUKASZEWICZ SPÓŁKA  JAWNA", "ad": "ul. Sowlańska 33, 15-560 Białystok"}, {"a": "KUAEDAR1", "n": "EDAR BONDARYK, BARANOWSKI I ŁUKASZEWICZ SPÓŁKA  JAWNA", "ad": "ul. Sokólska 2, 16-123 Kuźnica"}, {"a": "SOAEDAR2", "n": "EDAR BONDARYK, BARANOWSKI I ŁUKASZEWICZ SPÓŁKA  JAWNA  SKL.NR.2", "ad": "ul. Reymonta 1, 16-100 Sokółka"}, {"a": "JLYEDEN0", "n": "\"EDEN\" S.C. JAN GOŁĘBIEWSKI GRAŻYNA LEWOCZ", "ad": "JAŚWIŁY 8, 19-124 JAŚWIŁY"}, {"a": "BIKEDI01", "n": "EDIS ŁUKASZEWICZ SPÓŁKA JAWNA", "ad": "UL. Piastowska 5A, 15-757 BIAŁYSTOK"}, {"a": "BIKEDI99", "n": "EDIS ŁUKASZEWICZ SPÓŁKA JAWNA", "ad": "ul. Sowlańska 33, 15-560 Białystok"}, {"a": "MOIEKOP1", "n": "EKO - PASZ WYTWÓRNIA PASZ ZBIGNIEW KROPIEWNICKI.", "ad": "ul. Szkolna 28, 19-100 Mońki"}, {"a": "MOIEKOPA-M", "n": "EKO - PASZ WYTWÓRNIA PASZ ZBIGNIEW KROPIEWNICKI.", "ad": "ul. Ełcka 43, 19-100 Mońki"}, {"a": "MOIEKOPAMAJ", "n": "EKO - PASZ WYTWÓRNIA PASZ ZBIGNIEW KROPIEWNICKI.", "ad": "ul. SZKOLNA 28, 19-100 Mońki"}, {"a": "MOIEKOPA28MAJ", "n": "EKO-PASZ WYTWÓRNIA PASZ ZBIGNIEW KROPIEWNICKI", "ad": "ul. EŁCKA 43, 19-100 Mońki"}, {"a": "BIKELEKT1", "n": "ELEKTROGIN S.C.  D. GINTER M. GINTER", "ad": "UL. BITWY BIAŁOSTOCKIEJ 2C, 15-103 BIAŁYSTOK"}, {"a": "WAWERB99-SĄD", "n": "ERB SPÓŁKA Z OGRANICZONĄ ODPOWIEDZIALNOŚCIĄ  SPÓŁKA KOMANDYTOWA", "ad": "ul. Kościelna 58A, 16-010 Wasilków"}, {"a": "WAWERB01", "n": "ERB SPÓŁKA Z OGRANICZONĄ ODPOWIEDZIALNOŚCIĄ  SPÓŁKA KOMANDYTOWA  MARKET W DOLINIE", "ad": "ul. Białostocka 106 lok. U5, 16-010 Wasilków"}, {"a": "CBAMETAL", "n": "FIRMA HANDLOWA METALMIX ZBIGNIEW ANDRUSIEWICZ", "ad": "UL.TOROWA 5, 16-020 CZARNA BIAŁOSTOCKA"}, {"a": "WIALIDIA", "n": "Firma Handlowo Usługowa Lidia Palczewska", "ad": "pl. kpt. Władysława Raginisa  37, 18-430 Wizna"}, {"a": "WAWMASTE", "n": "FIRMA HANDLOWO-BUDOWLANA \"Mastex\" Grzegorz  Szaniawski", "ad": "ul. Kościelna 3, 16-010 Wasilków"}, {"a": "MIOMAJST", "n": "FIRMA SIS SPÓŁKA JAWNA SAWICKI I OKSIMOWICZ", "ad": "ul. Plac 11 Listopada 15, 16-050 Michałowo"}, {"a": "BIKSMIAR", "n": "FIRMA WIELOBRANŻOWA REGINA ŚMIAROWSKA", "ad": "UL.NOWOSIELSKA 40 K, 15-617 BIAŁYSTOK"}, {"a": "CARRE597", "n": "GLOBI zaopatrzenie Białystok ul. Pułaskiego 65   G91", "ad": "ul. Pułaskiego 65, 15-337 Białystok"}, {"a": "RUIGMIN1", "n": "GMINA RUTKI", "ad": "ul. 11 Listopada 7, 18-312 Rutki - Kossaki"}, {"a": "DAAGS999", "n": "GMINNA SPÓŁDZIELNIA \"SAMOPOMOC CHŁOPSKA\"", "ad": "UL.PLAC KOŚCIUSZKI 4, 16-200 DĄBROWA BIAŁOSTOCKA"}, {"a": "LAYGS999", "n": "GMINNA SPÓŁDZIELNIA \"SAMOPOMOC CHŁOPSKA\"", "ad": "ul. Harcerska 2, 18-100 Łapy"}, {"a": "TKAGS000", "n": "GMINNA SPÓŁDZIELNIA \"SAMOPOMOC CHŁOPSKA\"", "ad": "Turośń Dolna 102, 18-106 Turośń Kościelna"}, {"a": "DAAGS002", "n": "GMINNA SPÓŁDZIELNIA \"SAMOPOMOC CHŁOPSKA\"  SKLEP TEKSTYLIA", "ad": "UL.WESOŁA 2, 16-200 DĄBROWA BIAŁOSTOCKA"}, {"a": "DAAGS000", "n": "GMINNA SPÓŁDZIELNIA \"SAMOPOMOC CHŁOPSKA\" PAWILON \"NOWY SĄCZ\" SKL.AGD", "ad": "UL.WESOŁA 2, 16-200 DĄBROWA BIAŁOSTOCKA"}, {"a": "DAAGS001", "n": "GMINNA SPÓŁDZIELNIA \"SAMOPOMOC CHŁOPSKA\" SKLEP ELEKTRYCZNY", "ad": "UL.WESOŁA 2, 16-200 DĄBROWA BIAŁOSTOCKA"}, {"a": "GRATISA3", "n": "GRATIS ŁUKASZ SIERADZKI", "ad": "00-000"}, {"a": "BZJPSBMO", "n": "GRUPA  PSB S.A. MONIECKIE CENTRUM HANDLOWO- TARGOWE    ANDRZEJ PURTA", "ad": "UL.BIAŁOSTOCKA 49, 19-100 MOŃKI"}, {"a": "BZJPSBMM", "n": "GRUPA  PSB S.A. MONIECKIE CENTRUM HANDLOWO- TARGOWE  ANDRZEJ PURTA", "ad": "UL.MAGAZYNOWA 6, 19-100 MOŃKI"}, {"a": "BIKCHO99", "n": "GRUPA CHORTEN Sp. z o.o.", "ad": "ul. Usługowa 2, 16-070 Choroszcz"}, {"a": "BZJPSBSK", "n": "GRUPA PSB S.A.   HURTOWNIA  ARTYKUŁÓW PRZEMYSŁOWYCH IMPORT-EKSPORT RADOSŁAW KALINOWSKI", "ad": "UL.BIAŁOSTOCKA 81, 16-100 SOKÓŁKA"}, {"a": "BZJPSBSO", "n": "GRUPA PSB S.A.  Market  \"MRÓWKA\"", "ad": "UL.PRZEMYSŁOWA 5, 16-100 SOKÓŁKA"}, {"a": "JAAMROZA", "n": "GRUPA PSB S.A. EJ ZAMOJTUK SPÓŁKA Z OGRANICZONĄ ODPOWIEDZIALNOŚCIĄ", "ad": "ul. Korycińska 36, 19-122 Jasionówka"}, {"a": "BZJPSBDB", "n": "GRUPA PSB S.A. HURTOWNIA ART. PRZEMYSŁOWYCH IMPORT- EKSPORT RADOSŁAW KALINOWSKI", "ad": "UL.1000-LECIA PAŃSTWA POLSK.34, 16-200 DĄBROWA BIAŁOSTOCKA"}, {"a": "BZJPSBSCH", "n": "GRUPA PSB S.A. HURTOWNIA ART. PRZEMYSŁOWYCH IMPORT- EKSPORT RADOSŁAW KALINOWSKI", "ad": "UL. PIASKOWA 10 A, 16-150 SUCHOWOLA"}, {"a": "JAAMROW1", "n": "GRUPA PSB S.A. Przedsiębiorstwo Produkcyjno - Handlowe \"EJ\" Józef Janusz Zamojtuk", "ad": "ul. Korycińska 36, 19-122 JASIONÓWKA"}, {"a": "CHZGS000", "n": "GS \"SCH\" W CHOROSZCZY UL.BRANICKIEGO 2 16-070 CHOROSZCZ SKLEP SPOŻYWCZO - PRZEMYSŁOWY", "ad": "UL.BIAŁOSTOCKA 29, 16-002 DOBRZYNIEWO DUŻE"}, {"a": "LAYGSLAP", "n": "GS ŁAPY SPÓŁKA Z OGRANICZONĄ ODPOWIEDZIALNOŚCIĄ", "ad": "ul. Harcerska 2, 18-100 Łapy"}, {"a": "TKAGSLAP", "n": "GS ŁAPY SPÓŁKA Z OGRANICZONĄ ODPOWIEDZIALNOŚCIĄ", "ad": "ul. Lipowa 55, 18-106 Turośń Kościelna"}, {"a": "TKAGSTUR", "n": "GS ŁAPY SPÓŁKA Z OGRANICZONĄ ODPOWIEDZIALNOŚCIĄ  SKLEP SPOŻYWCZO - PRZEMYSŁOWY", "ad": "Turośń Dolna, Główna 15, 18-106 Turośń Kościelna"}, {"a": "LAYGWO999", "n": "GWOŹDZIEJ SPÓŁKA Z OGRANICZONĄ ODPOWIEDZIALNOŚCIĄ", "ad": "ul. Długa 78, 18-100 Łapy"}, {"a": "WAAPROJE", "n": "HOUSE&LIFE  SPÓŁKA Z OGRANICZONĄ ODPOWIEDZIALNOŚCIĄ", "ad": "ul. Domaniewska 17/19/133, 02-663 Warszawa"}, {"a": "BIKPROJ1", "n": "HOUSE&LIFE SPÓŁKA Z OGRANICZONĄ ODPOWIEDZIALNOŚCIĄ", "ad": "ul. WŁADYSŁAWA RAGINISA 73, 15-161 Białystok"}, {"a": "DAAKALIN", "n": "HURTOWNIA ART. PRZEMYSŁOWYCH IMPORT - EKSPORT RADOSŁAW KALINOWSKI", "ad": "UL.1000-LECIA PAŃSTWA POL. 34, 16-200 DĄBROWA BIAŁOSTOCKA"}, {"a": "BIKBAMBI", "n": "HURTOWNIA ARTYKUŁÓW DZIECIĘCYCH BAMBINO", "ad": "UL.HANDLOWA 1, 15-399 BIAŁYSTOK"}, {"a": "SUAKALIN", "n": "Hurtownia Artykułów Przemysłowych Import-Eksport Radosław Kalinowski", "ad": "UL. PIASKOWA 10A, 16-150 Suchowola"}, {"a": "KNNGOLJA", "n": "Jan Gołębiewski - Handel Obwoźny i Stacjonarny", "ad": "ul. Jana Zamoyskiego 16, 19-120 Knyszyn"}, {"a": "RAWGOLJA", "n": "Jan Gołębiewski - Handel Obwoźny i Stacjonarny", "ad": "ul. Karwowska 26, 19-213 Radziłów"}, {"a": "SOKPS999", "n": "JASKÓŁKA SP. Z O.O.", "ad": "UL.GRODZIEŃSKA 37, 16-100 SOKÓŁKA"}, {"a": "KUAJASKL", "n": "JASKÓŁKA SP. Z O.O. SKLEP NR 11 GAMA", "ad": "UL.GRODZIEŃSKA 2, 16-123 Kuźnica"}, {"a": "SOKPSS70", "n": "JASKÓŁKA SP. Z O.O. SKLEP NR 7", "ad": "UL.DĄBROWSKIEGO 1, 16-100 SOKÓŁKA"}, {"a": "SOKPSS13", "n": "JASKÓŁKA SP. Z O.O. SKLEP SPOŻYWCZY NR 13 GAMA", "ad": "UL. BROWARNA 1, 16-140 Korycin"}, {"a": "SOKPSS14", "n": "JASKÓŁKA SP. Z O.O. SKLEP SPOŻYWCZY NR 14 GAMA", "ad": "UL. SOKÓLSKA 2, 16-130 Janów"}, {"a": "BIALEWID", "n": "JERZY DUNAJ SKLEP MONOPOLOWY", "ad": "ul. Bolesława Chrobrego 16A, 15-057 Białystok"}, {"a": "KONMAJST", "n": "Jolanta Siwicka PHU Farmer", "ad": "ul. Browarna 5, 16-140 Korycin"}, {"a": "BIKKAMIL", "n": "KAMIL SMOLUK", "ad": "ul. gen. Władysława Andersa  40/70, 15-113 Białystok"}, {"a": "BIKKART1", "n": "KART BARANOWSKI I ŁUKASZEWICZ SPÓŁKA JAWNA", "ad": "Osiedle Zielone 1b, 16-100 Sokółka"}, {"a": "BIKKART9", "n": "KART BARANOWSKI I ŁUKASZEWICZ SPÓŁKA JAWNA", "ad": "ul. Sowlańska 33, 15-560 Białystok"}, {"a": "BIKKAR999", "n": "\"KART\" K. BARANOWSKI, A. I A. ŁUKASZEWICZ SPÓŁKA  JAWNA", "ad": "ul. Sowlańska 33, 15-560 Białystok"}, {"a": "WIEKART2", "n": "\"KART\" K. BARANOWSKI, A. I A. ŁUKASZEWICZ SPÓŁKA  JAWNA", "ad": "ul. WIERZCHLESIE 89, 16-113 Wierzchlesie"}, {"a": "SZOKART1", "n": "\"KART\" K. BARANOWSKI, A. I A. ŁUKASZEWICZ SPÓŁKA  JAWNA  SKLEP NR 1", "ad": "ul. Centralna 25, 16-113 Szudziałowo"}, {"a": "SZOKART2", "n": "\"KART\" K. BARANOWSKI, A. I A. ŁUKASZEWICZ SPÓŁKA  JAWNA  SKLEP NR 2", "ad": "ul. Wierzchlesie 89, 16-113 Szudziałowo"}, {"a": "SOAKART3", "n": "\"KART\" K. BARANOWSKI, A. I A. ŁUKASZEWICZ SPÓŁKA  JAWNA  SKLEP NR 3", "ad": "ul. Białostocka 176, 16-100 Sokółka"}, {"a": "SOAKART4", "n": "\"KART\" K. BARANOWSKI, A. I A. ŁUKASZEWICZ SPÓŁKA  JAWNA  SKLEP NR 4", "ad": "ul. Osiedle Zielone 1b, 16-100 Sokółka"}, {"a": "SOAKART5", "n": "\"KART\" K. BARANOWSKI, A. I A. ŁUKASZEWICZ SPÓŁKA  JAWNA  SKLEP NR 5", "ad": "ul. Stara Kamionka 64, 16-100 Sokółka"}, {"a": "TKATUROS", "n": "KLUB SPORTOWY \"TUROŚNIANKA\"", "ad": "ul. Białostocka 5, 18-106 Turośń Kościelna"}, {"a": "CBAKONKRET", "n": ",,KONKRET'' DAWID JUSZCZYK", "ad": "UL. TOROWA 13/34, 16-020 Czarna Białostocka"}, {"a": "KONRYWIERZ", "n": "KONRYS KONSTANTY I KRZYSZTOF ŚWIERZBIŃSCY SPÓŁKA  JAWNA", "ad": "ul. Zwycięstwa 8F, 15-703 Białystok"}, {"a": "SOAKROSBI", "n": "KROSBI Sp. z o.o.", "ad": "ul. LOTNIKÓW LEWONIEWSKICH 1 A, 16-100 SOKÓŁKA"}, {"a": "BIKLASER", "n": "Laserograf - Grawernia Bożena Renata Stepaniuk", "ad": "UL. Elewatorska 11, 15-620 Białystok"}, {"a": "BIKKUKLI", "n": "LOGIK Jeremiasz Kuklik", "ad": "ul. Al. 1000-lecia Państwa  Polskiego 8, 15-111 Białystok"}, {"a": "ZAYWLOD", "n": "M-PRO MATEUSZ WŁODARSKI", "ad": "Plac Wolności 13, 16-075 Zawady"}, {"a": "JAWTUREL", "n": "MAJSTER - BUD IWONA TUREL", "ad": "UL. Browarna 1A, 16-130 Janów"}, {"a": "BIKMAKO9", "n": "MAKOMA SPÓŁKA Z OGRANICZONĄ ODPOWIEDZIALNOŚCIĄ", "ad": "ul. Sienkiewicza 28, 15-004 Białystok"}, {"a": "CHZMAKO8", "n": "MAKOMA SPÓŁKA Z OGRANICZONĄ ODPOWIEDZIALNOŚCIĄ", "ad": "ul. Sienkiewicza 29, 16-070 Choroszcz"}, {"a": "BIKMARDI1", "n": "MARDI SPÓŁKA Z OGRANICZONĄ ODPOWIEDZIALNOŚCIĄ", "ad": "ul. Antoniukowska 56, 15-845 Białystok"}, {"a": "MOIMARDI", "n": "MARDI SPÓŁKA Z OGRANICZONĄ ODPOWIEDZIALNOŚCIĄ  SKLEP 115", "ad": "ul. NIEPODLEGŁOŚCI 2A/3, 19-100 Mońki"}, {"a": "BIKMAR05", "n": "MARKANDA S.A. \"PSZCZÓŁKA\" SKLEP NR 5", "ad": "UL. Broniewskiego 4  lok.B 106/2, 15-748 Białystok"}, {"a": "BIKMARK17", "n": "MARKANDA S.A. TOP MARKET  SKL.NR 117", "ad": "UL.OŚ. CENTRUM 20, 16-010 SOKÓŁKA"}, {"a": "BIKMARK22", "n": "MARKANDA S.A. TOP MARKET SKL.NR 122", "ad": "Ul. Kościelna 1, 16-315 Lipsk"}, {"a": "BIKMARK1", "n": "MARKANDA S.A.\"PSZCZÓŁKA\" SKL.NR 101", "ad": "UL. PLAC RYNKOWY 20, 16-205 Nowy Dwór"}, {"a": "BIKMARK3", "n": "MARKANDA S.A.\"PSZCZÓŁKA\" SKL.NR 103", "ad": "UL.GROTTGERA 14A, 15-225 BIAŁYSTOK"}, {"a": "BIKMARK4", "n": "MARKANDA S.A.\"PSZCZÓŁKA\" SKL.NR 104", "ad": "UL.SZKOLNA 16, 18-312 RUTKI KOSSAKI"}, {"a": "BIKMARK8", "n": "MARKANDA S.A.\"PSZCZÓŁKA\" SKL.NR 108", "ad": "UL.KALWIŃSKA 2, 16-124 Sidra"}, {"a": "BIKMARK16", "n": "MARKANDA S.A.\"PSZCZÓŁKA\" SKL.NR 112", "ad": "UL.BARGŁÓWEK 2A, 19-213 RADZIŁÓW"}, {"a": "BIKMARK15", "n": "MARKANDA S.A.\"PSZCZÓŁKA\" SKL.NR 115", "ad": "UL. BIAŁOSTOCKA 30 A, 18-100 TUROŚŃ"}, {"a": "BIKMARK6", "n": "MARKANDA S.A.\"PSZCZÓŁKA\" SKL.NR 118", "ad": "UL.3 MAJA 21, 19-104 Trzcianne"}, {"a": "BIKMARK121", "n": "MARKANDA S.A.\"PSZCZÓŁKA\" SKL.NR 121", "ad": "UL.CIEPŁA 17, 15-472 Białystok"}, {"a": "BIKMARK14", "n": "MARKANDA S.A.\"PSZCZÓŁKA\" SKL.NR 14", "ad": "UL.ŚW. JERZEGO 22, 15-352 Białystok"}, {"a": "BIKMAR07", "n": "MARKANDA S.A.\"PSZCZÓŁKA\" SKLEP NR 7", "ad": "Stanisławowo 18 B, 15-352 Stanisławowo"}, {"a": "TRESAREN", "n": "MARKET SARENKA WOJCIECH SOBOLEWSKI", "ad": "UL.3-MAJA 25, 19-104 TRZCIANNE"}, {"a": "MARKLRSA S", "n": "MARKLAND ANNA KORBUT TOMASZ BURSA SPÓŁKA CYWILNA", "ad": "ul. Jurowiecka 34, 15-101 Białystok"}, {"a": "BIKMART99", "n": "\"MART\" M. OSTASZEWSKI, A I A ŁUKASZEWICZ SPÓŁKA  JAWNA", "ad": "ul. Sowlańska 33, 15-560 Białystok"}, {"a": "KKEMART1", "n": "\"MART\"SKLEP NR 1", "ad": "KRYPNO KOŚCIELNE 3A, 19-111 KRYPNO KOŚCIELNE"}, {"a": "MARTORANIC", "n": "MARTOM AUTOCENTRUM SPÓŁKA Z OGRANICZONĄ  ODPOWIEDZIALNOŚCIĄ", "ad": "ul. Kawaleryjska 28, 15-324 Białystok"}, {"a": "RAWREMON", "n": "Marzena Milewska Sklep Remoncik", "ad": "ul. Karwowska 7B, 19-213 Radziłów"}, {"a": "BIKHODUN", "n": "MATEUSZ HODUN", "ad": "UL.ELIZY ORZESZKOWEJ 1, 15-083 BIAŁYSTOK"}, {"a": "LIKMAXBU", "n": "\"MAXBUD\" Przedsiębiorstwo Handlowo-Usługowe Paweł  Trochimowicz", "ad": "ul. Stolarska 9, 16-315 Lipsk"}, {"a": "CZAMIKOM", "n": "MIKO MICHAŁ HALICKI", "ad": "ul. Wesoła 32, 16-020 Czarna Wieś Kościelna"}, {"a": "JAYKAWAL", "n": "MINIMARKET Michał Kawałko", "ad": "JAŚWIŁY 17A, 19-124 Jaświły"}, {"a": "BIKMOGRO1", "n": "MOGRO SPÓŁKA CYWILNA ROBERT MOGIELNICKI MARTA  MOGIELNICKA", "ad": "ul. Bernardyńska 3, 16-080 Tykocin"}, {"a": "BIKMO999", "n": "\"MOGRO\" ROBERT MOGIELNICKI", "ad": "UL.GAJOWA 28 M 37, 15-794 BIAŁYSTOK"}, {"a": "BIKSMOLU", "n": "MONIKA SMOLUK", "ad": "ul. BIAŁOSTOCZEK 22/7, 15-869 Białystok"}, {"a": "BIKSMOLU1", "n": "MONIKA SMOLUK", "ad": "ul. gen. Władysława Andersa  40/55, 15-113 Białystok"}, {"a": "JEEOGRO0", "n": "\" OGRODNIK \" HANNA MĘCZKOWSKA", "ad": "UL.PRZYTULSKA 62 B, 18-420 JEDWABNE"}, {"a": "BIKOLTIX", "n": "OLTIX SPÓŁKA Z OGRANICZONĄ ODPOWIEDZIALNOŚCIĄ", "ad": "ul. Kawaleryjska 19A, 15-325 Białystok"}, {"a": "DAAOPERA", "n": "OPERATOR SP. Z O.O.", "ad": "UL. WIEJSKA 4B/1, 15-352 Białystok"}, {"a": "INT/1/62467", "n": "OtoGrawer Zbigniew Harasimczuk", "ad": "Baranowicka 113 lok 4PU, 15-501 Białystok"}, {"a": "KCNFARME", "n": "P.H.U. \"FARMER\" JOLANTA SIWICKA", "ad": "UL.BROWARNA 5, 16-140 KORYCIN"}, {"a": "SIEIREX3", "n": "P.H.U. \"IREX-POL\" IRENEUSZ ŁUGOWSKI  PAW.HANDLOWY 17330", "ad": "UL.ŻERCZYŃSKA 1, 17-330 NURZEC STACJA"}, {"a": "JNWSKIBI", "n": "P.H.U. \"L.S.\" SKIBICKI LESZEK", "ad": "UL.RYNKOWA 2, 16-130 JANÓW"}, {"a": "RUIMARGO", "n": "P.H.U. \"MARGO\" MAŁGORZATA KOWALEWSKA", "ad": "UL.RYNEK 1, 18-312 RUTKI"}, {"a": "P.H.UILIA", "n": "P.H.U. JARIS SPÓŁKA CYWILNA EMILIA I WIKTOR  JAKUBOWSCY", "ad": "ul. Henryka Sienkiewicza 30A, 16-070 Choroszcz"}, {"a": "MAR-PUCH", "n": "P.H.U. Mar-Puch Marcin Puchalski", "ad": "ul. Długa 25, 15-635 Klepacze"}, {"a": "BIKPAMA1", "n": "PAMAR Marcin Florczyk", "ad": "POGORZAŁKI 148/1, 16-002 Dobrzyniewo Duże"}, {"a": "BIKPAMA99", "n": "PAMAR Marcin Florczyk", "ad": "ul. Nowosielska 40D, 15-617 Białystok"}, {"a": "BIKPAMAR3", "n": "PAMAR MARCIN FLORCZYK", "ad": "ul. Wesoła 17/1, 15-307 Białystok"}, {"a": "BIKPAMA00", "n": "PAMAR S.C. PAWEŁ FLORCZYK MARCIN FLORCZYK", "ad": "ul. Nowosielska 40D, 15-617 Bialystok"}, {"a": "BIKPAMAR1", "n": "PAMAR S.C. PAWEŁ FLORCZYK MARCIN FLORCZYK", "ad": "ul. STAROBOJARSKA 25, 15-617 Białystok"}, {"a": "BIKPAMAR2", "n": "PAMAR S.C. PAWEŁ FLORCZYK MARCIN FLORCZYK", "ad": "ul. BIAŁOSTOCZEK 1, 15-869 Białystok"}, {"a": "BIKPAMAR", "n": "\"PAMAR\" Delikatesy u Chłopców Paweł Florczyk", "ad": "ul. Nowosielska 40d, 15-617 Białystok"}, {"a": "ZAWPAMAR", "n": "\"PAMAR\" Paweł Florczyk", "ad": "Kalwińska 14, 16-060 Zabłudów"}, {"a": "SOOPAWO", "n": "PAWO S.C.", "ad": "Szosa Baranowicka 80, 15-509 Sobolewo"}, {"a": "AAAAPHA3", "n": "PH ŁUKASZ SIERADZKI", "ad": "00-000"}, {"a": "BIKSTYL1", "n": "PHU MARLENA STYPUŁKOWSKA", "ad": "ul. Andersa 40 lok 311, 15-113 Białystok"}, {"a": "BIKSTYLK", "n": "PHU MARLENA STYPUŁKOWSKA", "ad": "ul. Kozłowa 8/U1, 15-868 Białystok"}, {"a": "JUYPIOTR", "n": "PIOTR TIMOSZUK I EMILIA WASILUK SPÓŁKA CYWILNA", "ad": "Stanisławowo 22D, 15-604 Juchnowiec Kościelny"}, {"a": "BIKPO999", "n": "\"POL-KRYS\" KRYSTIAN ZAWADZKI, KATARZYNA  POŁONOWSKA-DZIADUL S.C.", "ad": "UL.ZABŁUDOWSKA 65, 15-585 Białystok"}, {"a": "BIKPOLKR", "n": "\"POL-KRYS\" KRYSTIAN ZAWADZKI, KATARZYNA  POŁONOWSKA-DZIADUL S.C.", "ad": "UL. ZABŁUDOWSKA 65, 15-585 Białystok"}, {"a": "POWIABIA", "n": "POWIAT BIAŁOSTOCKI", "ad": "ul. Borsucza 2, 15-569 Białystok"}, {"a": "MOIPOWIA", "n": "POWIAT MONIECKI", "ad": "ul. Juliusza Słowackiego 5A, 19-100 Mońki"}, {"a": "BIKPS999", "n": "POWSZECHNA SPÓŁDZIELNIA SPOŻYWCÓW  \"SPOŁEM\" W BIAŁYMSTOKU", "ad": "RYNEK KOŚCIUSZKI 15, 15-950 BIAŁYSTOK"}, {"a": "BIKPSS18", "n": "POWSZECHNA SPÓŁDZIELNIA SPOŻYWCÓW  \"SPOŁEM\" W BIAŁYMSTOKU SKL.NR 18  \"MIESZKO\"", "ad": "UL.MIESZKA I 6, 15-950 BIAŁYSTOK"}, {"a": "BIKPSS24", "n": "POWSZECHNA SPÓŁDZIELNIA SPOŻYWCÓW  \"SPOŁEM\" W BIAŁYMSTOKU SKL.NR 24  \"TĘCZA\"", "ad": "UL.J.BRZECHWY 3, 15-950 BIAŁYSTOK"}, {"a": "BIKPSS45", "n": "POWSZECHNA SPÓŁDZIELNIA SPOŻYWCÓW  \"SPOŁEM\" W BIAŁYMSTOKU SKL.NR 45 \"OPAŁEK\"", "ad": "UL.M.C.SKŁODOWSKIEJ 16, 15-950 BIAŁYSTOK"}, {"a": "BIKPSS05", "n": "POWSZECHNA SPÓŁDZIELNIA SPOŻYWCÓW  \"SPOŁEM\" W BIAŁYMSTOKU SKL.NR 5 \"STROMA\"", "ad": "UL. STROMA 1G, 15-950 BIAŁYSTOK"}, {"a": "BIKPSS56", "n": "POWSZECHNA SPÓŁDZIELNIA SPOŻYWCÓW  \"SPOŁEM\" W BIAŁYMSTOKU SKL.NR 56  \"WYGODA\"", "ad": "UL.TRAUGUTTA 1, 15-950 BIAŁYSTOK"}, {"a": "BIKPSS15", "n": "POWSZECHNA SPÓŁDZIELNIA SPOŻYWCÓW \"SPOŁEM\"  W BIAŁYMSTOKU SKL.NR 15  \"ZODIAK\"", "ad": "UL.WROCŁAWSKA 5, 15-950 BIAŁYSTOK"}, {"a": "BIKPSSDH", "n": "POWSZECHNA SPÓŁDZIELNIA SPOŻYWCÓW \"SPOŁEM\" W BIAŁYMSTOKU SDH \"CENTRAL\" AGD", "ad": "UL.M.C.SKŁODOWSKIEJ 2/1, 15-950 BIAŁYSTOK"}, {"a": "BIKPSS02", "n": "POWSZECHNA SPÓŁDZIELNIA SPOŻYWCÓW \"SPOŁEM\" W BIAŁYMSTOKU SKL. NR 2", "ad": "ul. BOBOLI 95, 15-950 BIAŁYSTOK"}, {"a": "BIKPSS01", "n": "POWSZECHNA SPÓŁDZIELNIA SPOŻYWCÓW \"SPOŁEM\" W BIAŁYMSTOKU SKL.NR 1 \"KEN\"", "ad": "UL.H.KOŁŁĄTAJA 50, 15-950 BIAŁYSTOK"}, {"a": "BIKPSS16", "n": "POWSZECHNA SPÓŁDZIELNIA SPOŻYWCÓW \"SPOŁEM\" W BIAŁYMSTOKU SKL.NR 16  \"WARS\"", "ad": "UL.WARSZAWSKA 79, 15-950 BIAŁYSTOK"}, {"a": "BIKPSSZA", "n": "POWSZECHNA SPÓŁDZIELNIA SPOŻYWCÓW \"SPOŁEM\" W BIAŁYMSTOKU SKL.NR 300  \"HERMES\"", "ad": "UL.ZAGÓRNA 10, 15-950 BIAŁYSTOK"}, {"a": "BIKPSSWE", "n": "POWSZECHNA SPÓŁDZIELNIA SPOŻYWCÓW \"SPOŁEM\" W BIAŁYMSTOKU SKL.NR 301", "ad": "UL.WESOŁA 14, 15-950 BIAŁYSTOK"}, {"a": "BIKPSS35", "n": "POWSZECHNA SPÓŁDZIELNIA SPOŻYWCÓW \"SPOŁEM\" W BIAŁYMSTOKU SKL.NR 35  \"BAZAR\"", "ad": "UL.BEMA 89/2, 15-950 BIAŁYSTOK"}, {"a": "BIKPSS04", "n": "POWSZECHNA SPÓŁDZIELNIA SPOŻYWCÓW \"SPOŁEM\" W BIAŁYMSTOKU SKL.NR 4 ''POGODNY ''", "ad": "UL. POGODNA 6, 15-354 BIAŁYSTOK"}, {"a": "BIKPSS44", "n": "POWSZECHNA SPÓŁDZIELNIA SPOŻYWCÓW \"SPOŁEM\" W BIAŁYMSTOKU SKL.NR 44  \"KOMETA\"", "ad": "UL.KARD.ST.WYSZYŃSKIEGO 6, 15-950 BIAŁYSTOK"}, {"a": "BIKPSS53", "n": "POWSZECHNA SPÓŁDZIELNIA SPOŻYWCÓW \"SPOŁEM\" W BIAŁYMSTOKU SKL.NR 53  \"BOJARY\"", "ad": "UL.SŁONIMSKA 2/1, 15-950 BIAŁYSTOK"}, {"a": "BIKPSS88", "n": "POWSZECHNA SPÓŁDZIELNIA SPOŻYWCÓW \"SPOŁEM\" W BIAŁYMSTOKU SKL.NR 88", "ad": "UL.GAJOWA 68, 15-950 BIAŁYSTOK"}, {"a": "DBAJA999", "n": "PPUH JANEX ZOFIA DZIETCZYK", "ad": "UL.SZKOLNA 5, 16-200 Dąbrowa Białostocka"}, {"a": "DBAJANEX", "n": "PPUH JANEX ZOFIA DZIETCZYK", "ad": "PLAC KOŚCIUSZKI 1, 16-200 Dąbrowa Białostocka"}, {"a": "BIKPREMI", "n": "PREMIUM-PLUS S.C. A.KIEDA, A.GREGORCZUK, C.GRYKO", "ad": "UL.PIETKIEWICZA 21/1, 15-689 BIAŁYSTOK"}, {"a": "JEEPRIM0", "n": "PRIM  JEDWABNE SKLEP 423", "ad": "UL.SADOWA 25, 18-420 Jedwabne"}, {"a": "WIAZIELO", "n": "PRIM  MARKET", "ad": "UL.MICKIEWICZA 4, 18-430 Wizna"}, {"a": "BIKPRIM6", "n": "PRIM MARKET", "ad": "UL. STRAŻACKA 6, 15-687 BIAŁYSTOK"}, {"a": "DDEPRIMA", "n": "PRIMA SPÓŁKA CYWILNA A. ZAWADZKA, T. ZAWADZKI", "ad": "ul. Lipowa 129, 16-002 Dobrzyniewo Duże"}, {"a": "BIKPROJE", "n": "PROJECT PLUS SP Z O.O.", "ad": "UL. KRÓLA ZYGMUNTA 24/23, 15-136 Białystok"}, {"a": "BIKPROM0", "n": "PROMYK BIS DĄBROWSKI I ŁUKASZEWICZ SPÓŁKA JAWNA", "ad": "ul. Sowlańska 33, 15-560 Białystok"}, {"a": "RAWPROMY", "n": "PROMYK BIS DĄBROWSKI I ŁUKASZEWICZ SPÓŁKA JAWNA", "ad": "Mścichy 24, 19-213 Radziłów"}, {"a": "STIPROM1", "n": "PROMYK BIS DĄBROWSKI I ŁUKASZEWICZ SPÓŁKA JAWNA", "ad": "Plac Wolności 24, 18-520 Stawiski"}, {"a": "Ż$2926997 81868 NATG", "n": "PROMYK BIS DĄBROWSKI I ŁUKASZEWICZ SPÓŁKA JAWNA", "ad": "ul. Sowlańska 33, 15-560 Białystok"}, {"a": "BIKPRO99", "n": "PROMYK DĄBROWSKI I ŁUKASZEWICZ SPÓŁKA JAWNA", "ad": "ul. Sowlańska 33, 15-560 Białystok"}, {"a": "BIKPROM1", "n": "PROMYK DĄBROWSKI I ŁUKASZEWICZ SPÓŁKA JAWNA  SKLEP NR 1", "ad": "ul.DOJLIDY GÓRNE 133 B, 15-581 Białystok"}, {"a": "RAWPR999", "n": "PROMYK KAROL DĄBROWSKI SKLEP  SPOŻYWCZO-PRZEMYSŁOWY", "ad": "Mścichy 24, 19-213 Radziłów"}, {"a": "STIPROMY", "n": "PROMYK KAROL DĄBROWSKI SKLEP SPOŻYWCZO-PRZEMYSŁOWY SKL. NR 2", "ad": "PLAC WOLNOŚCI 24, 18-250 Stawiski"}, {"a": "SUISABO7", "n": "PRZEDSIĘBIORSTWO \"SABO\" SKLEP STOBUD", "ad": "UL.WIEWIÓRCZA 66, 15-532 Białystok"}, {"a": "BIKMARGO", "n": "PRZEDSIĘBIORSTWO HANDLOWE MARGO  MARZANNA DUNAJ", "ad": "ul. Upalna 84, 15-617 Białystok"}, {"a": "BIKLEMIR", "n": "PRZEDSIĘBIORSTWO HANDLOWO-USŁUGOWE \"LEMIR\" M.GAWRYLUK I INNI SPÓŁKA JAWNA", "ad": "ZAŚCIANKI 1, 15-521 BIAŁYSTOK"}, {"a": "PRZED USŁUJAN BAZARE", "n": "Przedsiębiorstwo Produkcyjno - Usługowo -  Handlowe \"MARTOM\" Jan Bazarewicz", "ad": "ul. Kawaleryjska 28, 15-324 Białystok"}, {"a": "CHZPLUS1", "n": "Przedsiębiorstwo Produkcyjno Usługowo Handlowe  \"PLUS\" Masłowski Jarosław Adam", "ad": "ul. Powstania Styczniowego  26B, 16-070 Choroszcz"}, {"a": "SUIAS021", "n": "PRZEDSIĘBIORSTWO PRODUKCYJNO- HANDLOWO-USŁUGOWE \"AS\" SP.Z O.O. SKL.NR 10", "ad": "UL.TYKOCKA 6, 18-120 KNYSZYN"}, {"a": "SUIAS052", "n": "PRZEDSIĘBIORSTWO PRODUKCYJNO- HANDLOWO-USŁUGOWE \"AS\" SP.Z O.O. SKL.NR 32", "ad": "ul. STRAŻACKA 3, 19-100 MOŃKI"}, {"a": "MOIBAJK1", "n": "PRZEDSIĘBIORSTWO USŁUGOWO-HANDLOWE \"BUDBAU\"  EDWARD BAJKOWSKI.", "ad": "ul. Kolejowa 23a, 19-100 Mońki"}, {"a": "MOIBAJKO", "n": "PRZEDSIĘBIORSTWO USŁUGOWO-HANDLOWE \"BUDBAU\"  EDWARD BAJKOWSKI.", "ad": "ul. Ełcka 45, 19-100 Mońki"}, {"a": "BIKBETA0", "n": "PRZEDSIĘBIORSTWO WIELOBRANŻOWE \"BETA\"  BIERNACKI,TOMCZAK SPÓŁKA JAWNA", "ad": "UL.MICKIEWICZA 17, 15-213 BIAŁYSTOK"}, {"a": "BIKCHOR2", "n": "PRZEDSIĘBIORSTWO WIELOBRANŻOWE \"BETA\"  BIERNACKI,TOMCZAK SPÓŁKA JAWNA", "ad": "UL. SWOBODNA 29, 15-756 BIAŁYSTOK"}, {"a": "KLNJA999", "n": "PRZEDSIĘBIORSTWO WIELOBRANŻOWE \"JAMDEX\" A. I J.KOWALCZUK S.J.", "ad": "UL.ZAMBROWSKA 20A, 16-001 KLEOSIN"}, {"a": "KLNJAMDE", "n": "PRZEDSIĘBIORSTWO WIELOBRANŻOWE \"JAMDEX\" A. I J.KOWALCZUK S.J.", "ad": "OSIEDLE IGNATKI UL.JODŁOWA 5, 16-001 KLEOSIN"}, {"a": "KLNMAREK", "n": "Przedsiębiorstwo Wielobranżowe \"MAREK\" Marek  Mikutowicz", "ad": "ul. Angielska 32/U6, 15-376 Białystok"}, {"a": "BIKMAREK", "n": "Przedsiębiorstwo Wielobranżowe \"MAREK\" Marek Mikutowicz", "ad": "UL. DUBOIS 4A LOK.14, 15-673 Białystok"}, {"a": "JAWROLBUD", "n": "ROL-BUD TOCZYŁOWSCY, MICHALCZUK SPÓŁKA JAWNA", "ad": "UL.BIAŁOSTOCKA 23, 16-130 JANÓW"}, {"a": "LIPROLB0", "n": "ROL-BUD TOCZYŁOWSCY, MICHALCZUK SPÓŁKA JAWNA", "ad": "UL.3 MAJA 11A, 16-315 SUCHOWOLA"}, {"a": "LIPROLBU", "n": "ROL-BUD TOCZYŁOWSCY, MICHALCZUK SPÓŁKA JAWNA", "ad": "UL.PUSTA 38, 16-315 LIPSK"}, {"a": "BIKPSBTE", "n": "SILIKATY-BIAŁYSTOK TĘPIŃSKI SPÓŁKA KOMANDYTOWA", "ad": "ul. Władysława Wysockiego 164, 15-167 Białystok"}, {"a": "DAAOPER1", "n": "SKLEP OPERATOR SP. Z O.O. SKLEP NR 106", "ad": "UL.TYSIĄCLECIA PAŃSTWA  POLSKIEGO 27, 16-200 Dąbrowa Białostocka"}, {"a": "DAAOPER2", "n": "SKLEP OPERATOR SP. Z O.O. SKLEP NR 116", "ad": "UL. MICKIEWICZA 14, 18-430 Wizna"}, {"a": "SKLEPZ", "n": "Sklep Przemysłowy Rafał Kardasz", "ad": "ul. Aleksandra i Grzegorza  Chodkiewiczów 31, 16-040 Gródek"}, {"a": "ZDYWLODA", "n": "SKLEP ROLNO PRZEMYSŁOWY S.C. RYSZARD WŁODARSKI i TERESA WŁODARSKA", "ad": "PL.WOLNOŚCI 13, 16-075 ZAWADY"}, {"a": "TKAGS001", "n": "SKLEP SPOŻYWCZO - PRZEMYSŁOWY", "ad": "ul. Lipowa 55, 18-106 Turośń Kościelna"}, {"a": "STIOBRYC", "n": "SKLEP SPOŻYWCZO-MONOPOLOWY OBRYCKA WIESŁAWA", "ad": "Plac Wolności 14, 18-520 Stawiski"}, {"a": "STIGRELA", "n": "SKLEP SPOŻYWCZO-PRZEMYSŁOWO-MONOPOLOWY STANISŁAW  GRELA", "ad": "Plac Wolności 5, 18-520 Stawiski"}, {"a": "TKAGS002", "n": "SKLEP SPOŻYWCZO-PRZEMYSŁOWY", "ad": "ul. Główna 15, Turośń Dolna, 18-106 Turośń Kościelna"}, {"a": "RUIWISNI", "n": "SKLEP SPOŻYWCZO-PRZEMYSŁOWY  WIŚNIEWSKA M. WIŚNIEWSKI M. S.C.", "ad": "ul. Łomżyńska 5, 18-312 Rutki"}, {"a": "KRISA999", "n": "SKLEP SPOŻYWCZO-PRZEMYSŁOWY \"SAM\" ANNA BIELSKA", "ad": "PL.JAGIELLOŃSKI 6, 16-120 KRYNKI"}, {"a": "KRISAM00", "n": "SKLEP SPOŻYWCZO-PRZEMYSŁOWY \"SAM\" ANNA BIELSKA", "ad": "UL.SOKÓLSKA 7, 16-120 KRYNKI"}, {"a": "KOKSAM00", "n": "SKLEP SPOŻYWCZO-PRZEMYSŁOWY \"SAM\" GRAŻYNA KOTOWSKA", "ad": "UL.WYSZYŃSKIEGO 18, 18-315 KOŁAKI KOŚCIELNE"}, {"a": "PRYMIKUC", "n": "SKLEP SPOŻYWCZO-PRZEMYSŁOWY KATARZYNA MIKUCKA", "ad": "UL.LIPOWA 20, 18-423 PRZYTUŁY"}, {"a": "BIKHANCZ", "n": "SKLEP SPOŻYWCZY HANCZARUK LEON", "ad": "UL.PLAŻOWA 91, 15-518 BIAŁYSTOK"}, {"a": "CHZSKLUN", "n": "SKLEP UNIWERSALNY JUSTYNA FRANKOWSKA", "ad": "ul. BRANICKIEGO 18, 16-070 Choroszcz"}, {"a": "KCNABC00", "n": "SKLEP WIELOBRANŻOWY \"ABC\"  ELŻBIETA MAKSIM", "ad": "UL.RYNEK 2, 16-140 KORYCIN"}, {"a": "JEEKAMIS", "n": "SKLEP WIELOBRANŻOWY KAMIŚ RENATA MOŁAS", "ad": "PL.JANA PAWŁA II 9, 18-420 Jedwabne"}, {"a": "JEEKAMIS1", "n": "SKLEP WIELOBRANŻOWY KAMIŚ RENATA MOŁAS", "ad": "PL.JANA PAWŁA II 27, 18-420 Jedwabne"}, {"a": "CBAZAWIS", "n": "SKLEP WIELOBRANŻOWY ZAWISZA IRENA  CZOPUR-SZYMAŃSKA", "ad": "ul. Henryka Sienkiewicza 2/2, 16-020 Czarna Białostocka"}, {"a": "WIZKUPEL", "n": "SKLEP Z ART. DO PRODUKCJI ROLNEJ HANDEL,USŁUGI,TRANSPORT HENRYK KAPELEWSKI", "ad": "UL.SZOSA BIAŁOSTOCKA 1, 18-430 WIZNA"}, {"a": "BIKSMART", "n": "Smart HOME Marlena Bieniek", "ad": "ul. Zwycięstwa 8/G2-36, 15-703 Białystok"}, {"a": "BIKSMOL0", "n": "SMOLUK PIOTR", "ad": "UL.BIAŁOSTOCZEK 22/7, 15-869 BIAŁYSTOK"}, {"a": "BIKSMOLUK", "n": "SMOLUK PIOTR", "ad": "UL. ANDERSA 40/44, 15-869 BIAŁYSTOK"}, {"a": "BIKSACGIK", "n": "Sprzedaż artykułów chemii gospodarczej i kosmetyków, artykuły przemysłowe  Bożena Młodzianowska", "ad": "Ul Gen. Władysława Andersa 40  lok. 58, 15-113 Białystok"}, {"a": "SOKGLINS", "n": "SPRZEDAŻ ARTYKUŁÓW INSTALACYJNO-SANITARNYCH DANUTA GLIŃSKA", "ad": "UL.1 MAJA 20, 16-100 SOKÓŁKA"}, {"a": "STACJÓWKA EL WOJCIEC", "n": "Stacja Demontażu Pojazdów IWANÓWKA Sprzedaż  części Auto Handel Wojciech Mielech, Okręgowa  Stacja Kontroli Pojazdów Markowszczyzna Wojciech Mielech", "ad": "18-106 Turośń Kościelna"}, {"a": "\"STACÓŁKA LNOŚCIĄ", "n": "\"STACJA PALIW M. NALEWAJKO\" SPÓŁKA Z OGRANICZONĄ  ODPOWIEDZIALNOŚCIĄ", "ad": "16-070 Choroszcz"}, {"a": "STRUK", "n": "STRUK CT Marta Struk", "ad": "ul. Kawaleryjska 28, 15-324 Białystok"}, {"a": "BIKMARKET", "n": "Supermarket Rodzinny  P. TIMOSZUK I M. WASILUK SPÓŁKA CYWILNA", "ad": "ul. Rzemieślnicza 3, 15-773 Białystok"}, {"a": "BPITONID", "n": "TONIDA SPÓŁKA Z OGRANICZONĄ ODPOWIEDZIALNOŚCIĄ", "ad": "aleja Józefa Piłsudskiego 33, 17-100 Bielsk-Podlaski"}, {"a": "JAWUNIPR", "n": "UNIPROGRES DANIEL DZIETCZYK", "ad": "ul. Parkowa 9A, 16-130 Janów"}, {"a": "SOAUNIPR", "n": "UNIPROGRES DANIEL DZIETCZYK", "ad": "ul. 1 Maja 16, 16-100 Sokółka"}, {"a": "RUIGMIN2", "n": "URZĄD GMINY RUTKI", "ad": "ul. 11 Listopada 7, 18-312 Rutki - Kossaki"}, {"a": "BIKWIGOR", "n": "WIGOR Karol Mróz", "ad": "ul. Wasilkowska 71/1, 15-118 Białystok"}, {"a": "BIKWOJEW", "n": "WOJEWÓDZKA STACJA SANITARNO-EPIDEMIOLOGICZNA W  BIAŁYMSTOKU", "ad": "ul. Legionowa 8, 15-099 Białystok"}, {"a": "WULKAASTIA", "n": "WULKANIZATORSTWO  MIROSŁAW SEWASTIANIK", "ad": "ul. Targowa 5, 16-100 Sokółka"}, {"a": "MOIZAWOD", "n": "Zespół Szkół Ogólnokształcących i Zawodowych w Mońkach", "ad": "ul. Tysiąclecia 15, 19-100 Mońki"}, {"a": "A3", "n": "ŁUKASZ SIERADZKI", "ad": "00-000"}];
+const $=id=>document.getElementById(id);
+let client=null, items=[], rawText='';
+let captureMode=null;   // batch: gdy ustawione, finish() oddaje wynik zamiast nawigowac ekrany
+function captureOnce(){ return new Promise(res=>{ captureMode=(its,rc)=>res({items:its,rowCount:rc}); }); }
+
+/* ---------- nawigacja ---------- */
+let hist=[];
+function go(n,push=true){
+  if(push && cur()!=n) hist.push(cur());
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('on'));
+  $('s'+n).classList.add('on');
+  $('back').style.visibility = (n==0)?'hidden':'visible';
+  window.scrollTo(0,0);
+}
+function cur(){return +document.querySelector('.screen.on').id.slice(1);}
+$('back').onclick=()=>{
+  if(batchEditIndex!==null){ batchDocs[batchEditIndex].items=items; batchEditIndex=null; render7(); go(7,false); return; }
+  const p=hist.pop()||0; go(p,false);
+};
+
+/* ---------- 1. lista klientow ---------- */
+function norm(s){
+  return (s||'').toLowerCase()
+    .replace(/ą/g,'a').replace(/ć/g,'c').replace(/ę/g,'e').replace(/ł/g,'l').replace(/ń/g,'n')
+    .replace(/ó/g,'o').replace(/ś/g,'s').replace(/ź/g,'z').replace(/ż/g,'z')
+    .replace(/[^a-z0-9]+/g,' ').trim();
+}
+CLIENTS.forEach(c=>c._h=norm(c.a+' '+c.n+' '+c.ad));
+function hl(txt,toks){
+  if(!toks.length) return txt;
+  let out=txt;
+  toks.forEach(t=>{
+    out=out.replace(new RegExp('('+t.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','gi'),'<mark>$1</mark>');
+  });
+  return out;
+}
+function render(f=''){
+  const toks=norm(f).split(' ').filter(Boolean);
+  const r=CLIENTS.filter(c=>toks.every(t=>c._h.includes(t)));
+  $('cnt').textContent = toks.length ? r.length+' z '+CLIENTS.length : CLIENTS.length+' klientów';
+  $('list').innerHTML=r.slice(0,80).map(c=>
+    `<div class="card" data-a="${c.a}"><b>${hl(c.n,toks)}</b><small>${hl(c.ad,toks)}</small><br><span class="ak">${hl(c.a,toks)}</span></div>`).join('')
+    || '<div class="card">Brak wyników — spróbuj krótszej frazy</div>';
+  if(r.length>80) $('list').innerHTML+='<div class="card"><small>...i '+(r.length-80)+' więcej. Doprecyzuj wyszukiwanie.</small></div>';
+  $('list').querySelectorAll('.card[data-a]').forEach(el=>el.onclick=()=>pick(el.dataset.a));
+}
+function pick(a){
+  client=CLIENTS.find(c=>c.a==a);
+  $('cli2').innerHTML=$('cli4').innerHTML=`<b>${client.n}</b><br><span class="ak">${client.a}</span> &nbsp;${client.ad}`;
+  $('hsub').textContent=client.a;
+  if(batchPickIndex!==null){
+    const d=batchDocs[batchPickIndex];
+    d.client=client;
+    d.status = d.items.length ? 'ok' : 'empty';
+    learnSet(d.fp, client.a);      // NAUKA: zapamietaj to dopasowanie na przyszlosc
+    d.learned=true;
+    batchPickIndex=null;
+    render7(); go(7,false);
+    return;
+  }
+  go(2);
+}
+$('q').oninput=e=>render(e.target.value);
+render();
+$('bModeSingle').onclick=()=>go(1);
+$('bModeBatch').onclick=()=>go(6);
+
+/* ---------- 2. zrodlo ---------- */
+$('bFile').onclick=()=>$('fFile').click();
+$('bPhoto').onclick=()=>$('fPhoto').click();
+$('bPaste').onclick=()=>{const b=$('pasteBox');b.style.display=b.style.display=='none'?'block':'none';};
+$('bPasteGo').onclick=()=>{rawText=$('ta').value;go(3);finish(parseText(rawText));};
+$('fFile').onchange=e=>{if(e.target.files[0])handleFile(e.target.files[0]);};
+$('fPhoto').onchange=e=>{if(e.target.files[0])ocrImage(e.target.files[0]);};
+
+function st(msg,p){$('status').innerHTML=msg+'<div class="bar"><i style="width:'+(p||0)+'%"></i></div>';}
+
+async function handleFile(f){
+  go(3); st('Wczytuję '+f.name+'...',5);
+  const ext=f.name.split('.').pop().toLowerCase();
+  try{
+    if(ext=='xlsx'||ext=='xls'||ext=='csv'){const r=await parseExcel(f); if(r) finish(mergeItems(r)); return;}
+    if(ext=='pdf')  return handlePdf(f);
+    st('Nieznany typ pliku.');
+  }catch(err){st('Błąd: '+err.message);}
+}
+
+/* ---------- Excel ---------- */
+async function parseExcel(f,auto=false){
+  const wb=XLSX.read(await f.arrayBuffer(),{type:'array'});
+  window._wb=wb; window._fname=f.name;
+  const cands=[];
+  const learned=loadXlsxMaps();
+  for(const sn of wb.SheetNames){
+    const rows=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,raw:false,defval:''});
+    let hr=-1,cE=-1,cQ=-1;
+    const hit=matchLearned(rows,learned);
+    if(hit){hr=hit.hr;cE=hit.cE;cQ=hit.cQ;}
+    else{
+      for(let i=0;i<Math.min(rows.length,15);i++){
+        const r=rows[i].map(x=>String(x).toLowerCase().trim());
+        const e=r.findIndex(x=>x.includes('kreskow')||x==='ean'||x==='kod ean'||x.includes('identyfikator towaru'));
+        const q=r.findIndex(x=>x==='ilość'||x==='ilosc'||x.includes('ilość do wydania')||x.includes('ilosc do wydania'));
+        if(e>=0&&q>=0){hr=i;cE=e;cQ=q;break;}
+      }
+    }
+    if(hr<0) continue;
+    const out=xlsxRows(rows,hr,cE,cQ);
+    if(out.length) cands.push({sn,out,cE,cQ,hr});
+  }
+  if(auto){ if(!cands.length) return []; cands.sort((a,b)=>a.out.length-b.out.length); return cands[0].out; }
+  // TRYB POJEDYNCZY: zawsze ekran wskazania kolumn (z podpowiedzia, jesli wykryto)
+  let seed=null;
+  if(cands.length){ cands.sort((a,b)=>a.out.length-b.out.length); seed={sn:cands[0].sn,cE:cands[0].cE,cQ:cands[0].cQ}; }
+  return manualMap(seed);
+}
+
+/* --- Excel: pomocnicze + reczne wskazanie kolumn --- */
+function xlsxRows(rows,hr,cE,cQ){
+  const out=[];
+  for(let i=(hr>=0?hr+1:0);i<rows.length;i++){
+    const ean=String(rows[i][cE]||'').replace(/\D/g,'');
+    const qty=parseInt(String(rows[i][cQ]||'').replace(',','.'),10);
+    if(ean.length>=8&&qty>0) out.push({ean,qty,hint:''});
+  }
+  return out;
+}
+function loadXlsxMaps(){ try{return JSON.parse(localStorage.getItem('zw_xlsxmap')||'{}');}catch(e){return {};} }
+function saveXlsxMap(sig,cE,cQ){ try{const m=loadXlsxMaps(); m[sig]={cE,cQ}; localStorage.setItem('zw_xlsxmap',JSON.stringify(m)); }catch(e){} }
+function matchLearned(rows,learned){
+  for(let i=0;i<Math.min(rows.length,15);i++){
+    const sig=rows[i].map(x=>String(x).toLowerCase().trim()).join('|');
+    if(sig.replace(/\|/g,'')&&learned[sig]) return {hr:i,cE:learned[sig].cE,cQ:learned[sig].cQ};
+  }
+  return null;
+}
+function escH(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+function manualMap(seed){
+  const wb=window._wb, perSheet={}; let best=wb.SheetNames[0],bestScore=-1;
+  for(const sn of wb.SheetNames){
+    const rows=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,raw:false,defval:''});
+    perSheet[sn]=rows;
+    const score=rows.filter(r=>r.some(c=>/\d{8,}/.test(String(c)))).length;
+    if(score>bestScore){bestScore=score;best=sn;}
+  }
+  const sn=(seed&&seed.sn)||best;
+  const cE=seed?seed.cE:-1, cQ=seed?seed.cQ:-1;
+  window._mm={perSheet,sn,cE,cQ,role:(cE<0?'ean':(cQ<0?'qty':'ean'))};
+  renderMap(); return null;
+}
+function renderMap(){
+  const m=window._mm, rows=m.perSheet[m.sn];
+  const nshow=Math.min(rows.length,8);
+  let ncol=0; for(let i=0;i<nshow;i++) ncol=Math.max(ncol,rows[i].length);
+  let h='<div style="text-align:left">';
+  h+='<b>Wskaż kolumny — '+escH(window._fname)+'</b>';
+  const sheets=Object.keys(m.perSheet);
+  if(sheets.length>1){
+    h+='<div style="margin:6px 0;font-size:13px">Arkusz: '+sheets.map(s=>
+      `<button class="btn alt" style="${s===m.sn?'outline:2px solid #16a34a':''}" onclick="mmSheet('${escH(s)}')">${escH(s)}</button>`).join(' ')+'</div>';
+  }
+  h+='<div style="margin:8px 0">'
+    +`<button class="btn ${m.role==='ean'?'':'alt'}" onclick="mmRole('ean')">1) Wskaż KOD EAN</button> `
+    +`<button class="btn ${m.role==='qty'?'':'alt'}" onclick="mmRole('qty')">2) Wskaż ILOŚĆ</button></div>`;
+  h+='<div style="overflow:auto;max-height:50vh"><table style="border-collapse:collapse;font-size:12px">';
+  h+='<tr>';
+  for(let c=0;c<ncol;c++){
+    const bg=c===m.cE?'#dcfce7':c===m.cQ?'#dbeafe':'#e2e8f0';
+    const lbl=c===m.cE?'✓ EAN':c===m.cQ?'✓ ILOŚĆ':'kol. '+(c+1);
+    h+=`<th style="border:1px solid #94a3b8;padding:5px 8px;background:${bg};cursor:pointer" onclick="mmPick(${c})">${lbl}</th>`;
+  }
+  h+='</tr>';
+  for(let i=0;i<nshow;i++){
+    h+='<tr>';
+    for(let c=0;c<ncol;c++){
+      const bg=c===m.cE?'#f0fdf4':c===m.cQ?'#eff6ff':'#fff';
+      h+=`<td style="border:1px solid #e2e8f0;padding:3px 6px;background:${bg};white-space:nowrap;max-width:170px;overflow:hidden;text-overflow:ellipsis;cursor:pointer" onclick="mmPick(${c})">${escH(String(rows[i][c]||''))}</td>`;
+    }
+    h+='</tr>';
+  }
+  h+='</table></div>';
+  h+='<div style="margin-top:10px">';
+  if(m.cE>=0&&m.cQ>=0) h+='<button class="btn go" onclick="mmDone()">✓ Zatwierdź i wczytaj</button> ';
+  h+='<button class="btn alt" onclick="mmReset()">Wyczyść</button></div>';
+  if(m.cE>=0||m.cQ>=0) h+='<div style="color:#16a34a;font-size:12px;margin-top:4px">Podpowiedź: zaznaczyłem kolumny automatycznie — sprawdź i jeśli OK kliknij „Zatwierdź".</div>';
+  h+='<div style="margin-top:6px;color:#64748b;font-size:12px">Kliknij „Wskaż KOD EAN", potem dotknij kolumny z kodami. Potem „Wskaż ILOŚĆ" i dotknij kolumny z ilością. Program zapamięta układ dla tego klienta.</div>';
+  h+='</div>';
+  st(h);
+}
+window.mmSheet=s=>{const m=window._mm;m.sn=s;m.cE=-1;m.cQ=-1;m.role='ean';renderMap();};
+window.mmRole=r=>{window._mm.role=r;renderMap();};
+window.mmPick=c=>{const m=window._mm; if(m.role==='ean'){m.cE=c;m.role='qty';} else {m.cQ=c;} renderMap();};
+window.mmReset=()=>{const m=window._mm;m.cE=-1;m.cQ=-1;m.role='ean';renderMap();};
+window.mmDone=()=>{
+  const m=window._mm, rows=m.perSheet[m.sn];
+  const out=xlsxRows(rows,-1,m.cE,m.cQ);
+  if(!out.length){ st('Nie znalazłem pozycji (kod EAN min. 8 cyfr, ilość > 0). Sprawdź, czy dobrze wskazane kolumny.'); return; }
+  const sigRow=rows.find(r=>r.some(x=>String(x).trim()&&!/^[\d.,\s]+$/.test(String(x))))||rows[0]||[];
+  saveXlsxMap(sigRow.map(x=>String(x).toLowerCase().trim()).join('|'),m.cE,m.cQ);
+  rawText='[Excel: '+m.sn+' — ręczne wskazanie kolumn]';
+  finish(mergeItems(out));
+};
+
+/* ---------- PDF ---------- */
+const CAT_RAW="182822107118282210881828221095182822171218282217291828221736182822175018282217741828221781182822182818282224981828222726182822275718282228251828222887182822289418282229001828222917182822292418282229311828226786182822823018282282471828228650182822932918282293741828229398182822940418282294111828229428182822956518282296191828229749182822975618282297631828229770182822978718282297941828229800182822991618288503181828850370182885063918288570651828858277182885828428692006502869200674286920117628692014112869201428286920165728692016642869201671286920168828692018172869202005286920402328692049242869204955286920497928692050062869205020286920504428692050512869205075286920508228692052112869205242286920526628692052732869205280286920529728692053032869205310286920533428692053582869205365286920537228692053892869205396286920542628692054332869205488286920549528692055322869205556286920558728692056002869205631286920574728692058462869206201286920621828692063552869206720286920711628692071302869207154286920716128692089532869210710286921072728692118612869212264286921228828692132782869213285286921329228692133152869214831286921486228692148792869215432286921544928692167812869217290286921731328692173372869217351286921737528692173992869217832286921806828692180752869218983286921899028692190032869219027286921903428692190412869219126286921914028692191882869219195286921969028692209002869222324286922234828692223622869223321286922342028692248302869224847286922487828692248852869224892286922490828692249152869224922286922493928692249462869224953286922496028692249772869224984286922520228692261312869227596286922761928692276262869227640286922766428692276712869227695286922771828692277252869227749286922776328692277702869227848286922786228692278932869227916286922796128692289992869229415286923101228692310292869231036286923135728692313642869231395286923140128692314322869231449286923328328692350582869235126286923593528692365052869236543286923655028692365672869236574286923830128692383252869238349286923835628692383632869238370286923842428692386772869238684286923869128692388372869238851286923894328692400212869240533286924054028692408302869240847286924085428692408612869240878286924091528692409222869240946286924096028692409772869240984286924099128692410112869241028286924103528692416082869241615286924162228692416462869241660286924167728692416912869241707286924171428692419672869242100286924211728692421312869242148286924215528692421622869242179286924218628692425682869242582286924259928692426292869242636286924264328692428962869242933286924294028692429572869242964286924298828692429952869243008286924302228692430392869243053286924306028692430772869243084286924311428692431212869243138286924314528692431692869243176286924321328692432442869243947286924397828692440672869244104286924411128692441282869244135286924414228692441592869244166286924417328692446612869244685286924470828692447222869244814286924482128692448382869244852286924486928692448762869244883286924490628692452482869245255286924538528692453922869245408286924553828692455762869245675286924571228692457292869246047286924631328692463202869246344286924639928692464052869246955286924731028692473272869247334286924734128692473582869247365286924737228692473892869247396286924740228692474192869247426286924745728692474642869249116286924912328692491302869249178286924918528692492082869249819286924982628692498952869249956286925077828692507852869250792286925110228692511192869251126286925124928692512562869251614286925170628692517202869251751286925176828692517752869251805286925187428692519042869251928286925228428692525982869252642286925267328692530522869253717286925372428692546462869254653286925466028692546772869254691286925470728692547142869254721286925478328692548062869254820286925588928692558962869255902286925591928692562992869256848286925764728692576612869257982286925880428692590612869260111286926013528692601732869261590286926207828692620922869262108286926211528692622072869262269286926227628692624672869262474286926381528692645602869264966286926497328692650622869265161286926517828692651852869265284286926546828692654752869265499286926610628692661132869266120286926613728692661442869266168286926618228692661992869266212286926622928692662362869266243286926640328692664102869267424286926758528692686742869269015286926914528692693362869269350286927005928692700662869270073286927008028692700972869270103286927027128692706772869272268286927231228692723742869272398286927264028692726572869272664286927271828692728622869273234286927326528692733402869273357286927336428692734252869273791286927410128692749342869274941286927495828692749652869275054286927517728692751842869275191286927637228692772632869277270286927769028692777062869277713286927774428692778122869277829286927783628692778432869277850286927786728692778742869277904286927791128692779282869277942286927795928692779662869277973286927798028692779972869278000286927858128692790522869279069286927908328692791202869279151286927918228692792362869279519286927955728692795712869279588286927960128692796182869279632286927964928692797482869279762286928054628692810172869281062286928107928692810862869281093286928110928692811162869281123286928113028692811472869281277286928165928692816662869282311286928255728692826252869283158286928317228692831892869283202286928321928692832332869283349286928353028692835542869283561286928407028692845442869284551286928458228692846052869285169286928531228692855102869285589286928560228692856192869285657286928568828692856952869285701286928577028692857872869285794286928581728692858482869285855286928586228692858932869286050286928606728692868452869286869286928691328692869372869287224286928733028692874772869287484286928750728692875142869287521286928753828692875452869287552286928756928692875832869287590286928762028692876442869287682286928770528692877362869287774286928787328692881602869288177286928818428692882452869288252286928827628692884122869288900286928891728692889552869289143286928915028692891982869289280286928929728692898082869289839286928986028692903232869290330286929034728692905832869290590286929060628692906442869290651286929082828692909582869290989286929104728692910612869291108286929111528692911222869291160286929148128692914982869291542286929155928692915802869291597286929160328692916102869291634286929182528692919482869292068286929209928692921502869292754286929276128692927782869292792286929289128692929142869292976286929363828692936832869293744286929375128692937682869293775286929378228692937992869293805286929381228692938362869293843286929385028692938672869293935286929403128692940482869294079286929425328692942602869294321286929434528692946042869294611286929464228692946592869294666286929564928692956562869295670286929568728692956942869295717286929572428692957312869295748286929581628692958232869295830286929589228692960112869296301286929632528692964792869296486286929649328692965092869296516286929652328692965302869296547286929655428692965612869296578286929658528692971862869297230286929767428692980532869298060286929817628692981832869298237286929824428692982512869298268286929863328692987702869298923286929902928692990362869299319286929933328692993572869299371286929978428692998385610000103561000011056100001275610000134561000014156100001655610000295561000086856100009505610000967561000129256100015685610001575561000169856100028175610002831561000287956100028935610002909561000291656100029855610002992561000300556100030125610003029561000303656100030435610003050561000306756100030745610003081561000309856100031045610003111561000338856100040195610004026561000403356100040955610004187561000427956100044775610004484561000460656100048425610005184561000530656100054435610005450561000562756100056345610005641561000567256100056895610005696561000571956100057265610005733561000574056100057645610005771561000578856100058015610005825561000626656100062735610006280561000650156100065185610006549561000655656100066005610006846561000701056100070275610007034561000704156100071575610007164561000717156100071885610007195561000721856100072255610007232561000725656100072705610007287561000731756100073625610007386561000739356100076145610007638561000766956100076765610007713561000772056100077375610007744561000775156100077685610007775561000845156100085675610008574561000869756100087105610008727561000877256100087895610008796561000880256100088195610008826561000883356100088405610008857561000886456100088715610008888561000911356100093115610009342561000935956100093665610009373561000938056100093975610009403561000942756100094585610009465561000948956100095025610010171561001018856100102015610010287561001039356100106765610010706561001071356100108435610010850561001096656100110245610011048561001111656100113455610011369561001140656100114205610011444561001148256100115055610011598561001162856100119635610011987561001259556100126635610012687561001285456100129225610012939561001294656100130355610013257561001326456100132885610013295561001331856100133255610013493561001350956100135855610014209561001431556100144215610014612561001467456100147355610014858561001487256100151525610015169561001538156100153985610015701561001578756100158245610015855561001597856100162655610016272561001674656100167535610016777561001678456100167915610016807561001681456100168215610017385561001739256100174225610017439561001744656100174915610017507561001753856100176135610017637561001764456100176515610017668561001770556100177125610017989561001810856100181225610018139561001815356100181605610018177561001818456100181915610018207561001821456100182215610018238561001824556100182695610018276561001850456100185595610018719561001882556100194885610019501561001951856100195945610019600561001961756100197545610019785561001979256100198085610019815561001982256100198395610019846561001985356100198605610019884561001989156100199385610019952561001996956100199765610019983561002004056100200645610020071561002008856100200955610020101561002020056100202245610020255561002028656100202935610020422561002045356100204605610020477561002048456100206375610020675561002069956100207055610020712561002083556100208425610020859561002086656100208805610021351561002136856100213755610021399561002142956100214365610021597561002201356100224335610022570561002258756100230655610023072561002308956100231885610023195561002320156100232185610023225561002324956100232565610023263561002327056100232875610023362561002338656100234235610023447561002345456100234615610023478561002348556100234925610023522561002370656100237135610023720561002375156100237685610023775561002406256100241785610024192561002449956100245055610024581561002459856100246045610025151561002516856100251995610025205561002522956100252365610025243561002525056100254585610025526561002553356100256015610025724561002574856100261415610026158561002616556100261725610026189561002619656100262025610026219561002622656100262335610026240561002626456100262715610026288561002630156100263185610026325561002633256100265475610026554561002656156100265785610026585561002659256100267695610026776561002678356100268135610026837561002690556100269295610026967561002698156100269985610027001561002712456100271315610027148561002736056100274075610027414561002742156100277805610027803561002782756100278585610027889561002794056100280465610028060561002808456100285585610028695561002870156100287325610028763561002883156100288485610028879561002888656100288935610028916561002892356100290505610029067561002907456100290985610029104561002911156100291285610029234561002924156100292585610029265561002927256100292895610029296561002930256100293195610029647561002968556100296925610029814561002982156100298455610029876561002996856100299755610029982561002999956100304905610030742561003090256100310535610031060561003107756100310845610031091561003128256100313055610031558561003171856100317705610031787561003179456100318005610031817561003183156100319235610031978561003200556100320985610032197561003220356100322105610032227561003224156100323195610032333561003250056100331945610033279561003337856100334535610033637561003367556100336825610033699561003386656100338735610033880561003389756100341395610034146561003423856100342835610034337561003471956100347405610034757561003476456100348015610034818561003482556100351675610035273561003529756100353275610035365561003537256100354575610035518561003555656100355705610035594561003603456100361405610036188561003620156100362565610036287561003643056100364545610036461561003647856100364855610036546561003655356100365605610036577561003658456100365915610036607561003687456100369355610036959561003748256100375055610037635561003764256100376595610037697561003853356100385405610038557561003866356100386705610038687561003890856100389155610039295561003941756100394245610039431561003955456100396535610039660561003967756100396845610039691561003970756100398685610039882561004007956100400865610040123561004013056100401475610040154561004016156100401785610040185561004019256100402085610040253561004026056100402775610040314561004046856100404755610040482561004052956100405365610040543561004058156100405985610040604561004061156100406285610040635561004070356100407105610040727561004073456100407415610040758561004103856100412505610041267561004128156100413045610041410561004177956100417865610041793561004180956100418165610041960561004198456100420285610042035561004204256100420595610042066561004209756100421035610042110561004212756100421345610042141561004215856100421655610042172561004219656100422025610042219561004248656100424935610042509561004251656100425235610042530561004254756100425545610042578561004258556100425925610042820561004283756100428445610042851561004286856100428755610042943561004295056100429675610042974561004298156100429985610043001561004302556100431245610043131561004314856100431555610043162561004322356100432305610043247561004325456100432615610043278561004328556100432925610043308561004331556100433225610043339561004334656100433535610043360561004352056100435375610043544561004355156100435685610043575561004358256100435995610043605561004371156100437285610043735561004374256100438105610043827561004383456100438415610043872561004388956100439335610043957561004398856100444665610044473561004450356100445105610044558561004470156100447185610044947561004495456100449785610044985561004520356100453885610045432561004570856100457155610045722561004573956100457535610045760561004584556100458525610046101561004611856100461255610046132561004614956100461565610046163561004617056100461875610046194561004620056100462175610046224561004623156100463615610046378561004638556100463925610046408561004641556100464225610046439561004644656100464535610046460561004647756100467435610046750561004676756100467745610046781561004679856100468045610046811561004682856100468355610046842561004685956100471225610047139561004784956100478565610047887561004793156100479625610047986561004803756100480685610048594561004860056100493005610049317561004932456100493555610049386561004945456100494615610049478561004948556100496215610049638561004964556100496525610049676561004968356100496905610049706561004971356100497205610049737561004974456100497515610049768561004977556100497825610049799561004980556100498125610049829561004983656100498435610049850561004986756100498745610049980561005002356100500305610050467561005047456100504815610050498561005287456100528985610053703561005371056106101047767800001776780019377678002097767800223776780024777678002617767800278776780028577678003087767800339776780034677678003917767800407776780095777678009647767801695776780179477678023887767802395776780240177678027777767803675776780369977678038427767803859776780414677678041537767805891776780590777678059147767805921776780637977678069737767806997776780701777678071617767815272776781563077678159207767816521776781735177678180137767818945776782385777678238887767823895776782390177678278247767828432776782867877678295387767833894776784138777678430777767843114776784313877678470137767850266776785028077678503107767850327776785035877678524137767854790776785494377678560227767863457776786468377678646907767864706776786473777678654997767865512776786735677678673707767869503776786951077678695277767869534776787004277678700597767870066776787007377678700807767870097776787114877678721457767872152776787217677678721837767872213776787226877678723057767872336776787235077678723677767872503776787259677678726197767872626776787264077678726577767872671776787268877678730987767873104776787311177678731597767873272776787331977678733647767873371776787341877678734707767874729776787533777678756897767875696776787570277678764887767877751776787778277678778677767878840776788056077678814997767881871776788242777678826637767882670776788275577678827627767882847776788285477678829397767882946776788303577678831107767883127776788320277678832197767883523776788353077678835547767883585776788361577678838067767883820776788384477678844767767884773776788497177678850537767885077776788508477678852377767886333776788641877678869827767886999776788739277678874777767887767776788788077678881777767888184776788819177678882077767888214776788822177678882387767888245776788825277678901947767890200776789026277678902867767890293776789039277678908287767890835776789084277678911087767891177776789118477678911917767891207776789121477678912387767891245776789125277678923107767892327776789255677678925637767892600776789261777678926627767892709776789272377678927547767892761776789277877678928087767892815776789285377678928607767892877776789290777678929147767892969776789297677678929837767893003776789301077678930277767893812776789387477678938987767893980776789400077678945747767895007776789509077678951067767895632776789565677678956707767895694776789658577678969987767898053776789807777678981387767898237776789829977678986887767898992776789941877678998147767899838";
+const CAT=new Set();
+for(let i=0;i<CAT_RAW.length;i+=10) CAT.add('590'+CAT_RAW.substr(i,10));
+try{ (JSON.parse(localStorage.getItem('zw_cat')||'[]')).forEach(c=>CAT.add(c)); }catch(e){}
+function catAdd(list){
+  try{
+    const cur=new Set(JSON.parse(localStorage.getItem('zw_cat')||'[]'));
+    list.forEach(c=>{cur.add(c);CAT.add(c);});
+    localStorage.setItem('zw_cat',JSON.stringify([...cur]));
+  }catch(e){}
+}
+async function handlePdf(f){
+  const pdf=await pdfjsLib.getDocument({data:await f.arrayBuffer()}).promise;
+  let txt='';
+  for(let p=1;p<=pdf.numPages;p++){
+    st('Czytam PDF, strona '+p+'/'+pdf.numPages,15*p/pdf.numPages);
+    const pg=await pdf.getPage(p), tc=await pg.getTextContent();
+    let y=null,line='';
+    tc.items.forEach(it=>{const ty=Math.round(it.transform[5]);
+      if(y!==null&&Math.abs(ty-y)>3){txt+=line+'\n';line='';} y=ty; line+=it.str+' ';});
+    txt+=line+'\n';
+  }
+  if(txt.replace(/\s/g,'').length>60){rawText=txt;return finish(parseText(txt));}
+  const cvs=[];
+  for(let p=1;p<=pdf.numPages;p++){
+    const pg=await pdf.getPage(p), vp=pg.getViewport({scale:4.17});
+    const cv=document.createElement('canvas'); cv.width=vp.width; cv.height=vp.height;
+    await pg.render({canvasContext:cv.getContext('2d'),viewport:vp}).promise;
+    cvs.push(cv);
+  }
+  runOcr(cvs);
+}
+async function ocrImage(f){
+  go(3); st('Przygotowuję zdjęcie...',5);
+  const img=await new Promise(r=>{const i=new Image();i.onload=()=>r(i);i.src=URL.createObjectURL(f);});
+  const sc=Math.min(3,2400/img.width);
+  const cv=document.createElement('canvas'); cv.width=img.width*sc; cv.height=img.height*sc;
+  cv.getContext('2d').drawImage(img,0,0,cv.width,cv.height);
+  runOcr([cv]);
+}
+
+/* ---- obróbka obrazu: binaryzacja + wykrycie wierszy tabeli ---- */
+function binarize(cv){
+  const ctx=cv.getContext('2d'), d=ctx.getImageData(0,0,cv.width,cv.height).data;
+  const N=cv.width*cv.height, g=new Uint8Array(N), h=new Int32Array(256);
+  for(let i=0;i<N;i++){const v=(d[i*4]*299+d[i*4+1]*587+d[i*4+2]*114)/1000|0; g[i]=v; h[v]++;}
+  let sum=0; for(let t=0;t<256;t++) sum+=t*h[t];
+  let sB=0,wB=0,mx=-1,thr=128;
+  for(let t=0;t<256;t++){
+    wB+=h[t]; if(!wB)continue; const wF=N-wB; if(!wF)break;
+    sB+=t*h[t];
+    const v=wB*wF*Math.pow(sB/wB-(sum-sB)/wF,2);
+    if(v>mx){mx=v;thr=t;}
+  }
+  const ink=new Uint8Array(N);
+  for(let i=0;i<N;i++) ink[i]=g[i]<thr?1:0;
+  return ink;
+}
+function removeVLines(ink,W,H){
+  const minLen=Math.max(25,Math.round(H*0.012));
+  const out=new Uint8Array(ink);
+  for(let x=0;x<W;x++){
+    let y=0;
+    while(y<H){
+      if(ink[y*W+x]){
+        let y2=y;
+        while(y2<H && ink[y2*W+x]) y2++;
+        if(y2-y>=minLen){ for(let k=y;k<y2;k++) out[k*W+x]=0; }
+        y=y2;
+      } else y++;
+    }
+  }
+  return out;
+}
+function findRows(ink,W,H){
+  // erozja pionowa (kernel 1x7) usuwa cienkie linie kropkowane
+  const proj=new Int32Array(H);
+  for(let y=3;y<H-3;y++){
+    let c=0;
+    for(let x=0;x<W;x++){
+      let a=1;
+      for(let k=-3;k<=3;k++) if(!ink[(y+k)*W+x]){a=0;break;}
+      c+=a;
+    }
+    proj[y]=c;
+  }
+  let mx=0; for(let y=0;y<H;y++) if(proj[y]>mx) mx=proj[y];
+  const thr=Math.max(5,mx*0.03), minH=Math.max(10,H*0.004);
+  const bands=[]; let s=null;
+  for(let y=0;y<H;y++){
+    if(proj[y]>thr&&s===null) s=y;
+    else if(proj[y]<=thr&&s!==null){ if(y-s>=minH) bands.push([s,y]); s=null; }
+  }
+  return bands;
+}
+function cropRow(src,ink,W,y0,y1){
+  const pad=5, a=Math.max(0,y0-pad), b=Math.min(src.height,y1+pad), h=b-a;
+  const c=document.createElement('canvas'); c.width=W*2; c.height=h*2;
+  const x=c.getContext('2d'); x.imageSmoothingEnabled=true;
+  const tmp=document.createElement('canvas'); tmp.width=W; tmp.height=h;
+  const id=tmp.getContext('2d').createImageData(W,h);
+  for(let i=0;i<W*h;i++){const v=ink[(a*W)+i]?0:255; id.data[i*4]=id.data[i*4+1]=id.data[i*4+2]=v; id.data[i*4+3]=255;}
+  tmp.getContext('2d').putImageData(id,0,0);
+  x.drawImage(tmp,0,0,c.width,c.height);
+  return c;
+}
+
+/* ---- OCR wiersz po wierszu ---- */
+async function runOcr(canvases){
+  st('Przygotowuję OCR...',10);
+  const w=await Tesseract.createWorker('eng');
+  let all=[], rows=[];
+  for(const cv of canvases){
+    const ink0=binarize(cv);
+    const ink=removeVLines(ink0,cv.width,cv.height);
+    const bands=findRows(ink,cv.width,cv.height);
+    for(const [y0,y1] of bands) rows.push(cropRow(cv,ink,cv.width,y0,y1));
+  }
+  const res=[]; rawText='';
+  // naglowek (nazwa sklepu, adres) czytamy osobno silnikiem polskim - angielski gubi Ł Ą Ó itd.
+  try{
+    const top=canvases[0];
+    const hc=document.createElement('canvas');
+    hc.width=top.width; hc.height=Math.round(top.height*0.22);
+    hc.getContext('2d').drawImage(top,0,0);
+    const wp=await Tesseract.createWorker('pol');
+    await wp.setParameters({tessedit_pageseg_mode:'6'});
+    const hdr=(await wp.recognize(hc)).data.text;
+    await wp.terminate();
+    rawText = hdr + '\n';
+  }catch(e){}
+  for(let i=0;i<rows.length;i++){
+    st('OCR: wiersz '+(i+1)+' z '+rows.length,10+80*i/rows.length);
+    await w.setParameters({tessedit_pageseg_mode:'7'});
+    let t=(await w.recognize(rows[i])).data.text.replace(/\n/g,' ').trim();
+    let r=lineToItem(t)||{ean:'',alts:[],qty:0};
+    if(!r.ean||!r.qty){
+      await w.setParameters({tessedit_pageseg_mode:'6'});
+      const t2=(await w.recognize(rows[i])).data.text.replace(/\n/g,' ').trim();
+      const r2=lineToItem(t2)||{ean:'',alts:[],qty:0};
+      if(r2.ean&&!r.ean){r.ean=r2.ean;r.alts=[];t=t+' | '+t2;}
+      else if(!r.ean&&!r.alts.length&&r2.alts&&r2.alts.length) r.alts=r2.alts;
+      if(r2.qty&&!r.qty) r.qty=r2.qty;
+    }
+    rawText+=t+'\n';
+    if(r.qty) res.push({ean:r.ean||'',alts:r.alts||[],qty:r.qty,hint:t});
+  }
+  await w.terminate();
+  finish(mergeItems(res), res.length);
+}
+
+/* ---- EAN: suma kontrolna + prefiks Galicji + naprawa 1 cyfry ---- */
+function eanOK(e){
+  if(!/^\d{13}$/.test(e)) return /^\d{8}$/.test(e)&&e8(e);
+  let s=0; for(let i=0;i<12;i++) s+=(+e[i])*(i%2?3:1);
+  return (10-s%10)%10===+e[12];
+}
+function e8(e){let s=0;for(let i=0;i<7;i++)s+=(+e[i])*(i%2?1:3);return (10-s%10)%10===+e[7];}
+function eanGood(e){return /^\d{13}$/.test(e)&&eanOK(e)&&e.slice(0,3)==='590';}
+function eanKnown(e){return CAT.has(e);}
+function fixEan(run){
+  let base=[];
+  if(run.length===13) base=[run];
+  else if(run.length===14) base=[run.slice(0,13),run.slice(1)];
+  else if(run.length===12){for(const d of '0123456789'){base.push(d+run);base.push(run+d);}}
+  else if(run.length>14){for(let i=0;i<=run.length-13;i++) base.push(run.substr(i,13));}
+  const hits=new Set();
+  base.forEach(t=>{if(eanGood(t)) hits.add(t);});
+  let k=[...hits].filter(eanKnown);
+  if(k.length===1) return new Set(k);
+  if(hits.size) return hits;
+  base.forEach(t=>{
+    for(let i=0;i<13;i++) for(const d of '0123456789'){
+      if(d===t[i]) continue;
+      const c=t.slice(0,i)+d+t.slice(i+1);
+      if(eanGood(c)) hits.add(c);
+    }
+  });
+  k=[...hits].filter(eanKnown);
+  if(k.length===1) return new Set(k);
+  return hits;
+}
+function catMatch(run){
+  if(run.length<7) return new Set();
+  const m=[...CAT].filter(c=>c.indexOf(run)>=0);
+  if(m.length===1) return new Set(m);
+  if(run.length===13){
+    const m2=[...CAT].filter(c=>{let d=0;for(let i=0;i<13;i++) if(c[i]!==run[i]&&++d>2) return false; return true;});
+    if(m2.length===1) return new Set(m2);
+  }
+  return new Set();
+}
+const QD=/(?<![\d,.])(\d{1,4})\s?[.,]\s?(\d{3})(?![\d])/;
+const QI=/(?<![\d,.])(\d{1,3})000(?![\d])/;
+const SKIP_LINE=/SUMA|WARTO|ZAKUPU|BRUTTO(?!\s*[:|])|NETTO(?!\s*[:|])|RAZEM/i;
+function lineToItem(L){
+  if(SKIP_LINE.test(L)) return null;
+  let runs=L.match(/\d{7,}/g)||[];
+  const m=L.match(QD)||L.match(QI);
+  if(!m&&!runs.length) return null;
+  // najdluzszy ciag cyfr to prawie zawsze EAN - probuj po kolei od najdluzszego
+  runs=runs.slice().sort((a,b)=>b.length-a.length);
+  let ean='', alts=[];
+  for(const r of runs){
+    let h=[...fixEan(r)];
+    if(h.length>1){ const k=h.filter(eanKnown); if(k.length) h=k; }
+    if(h.length!==1){ const cm=[...catMatch(r)]; if(cm.length===1) h=cm; }
+    if(h.length===1){ ean=h[0]; alts=[]; break; }
+    if(h.length>1&&!alts.length) alts=h.slice(0,4);
+  }
+  let qty = m ? parseInt(m[1],10) : 0;
+  // format PSS: ilosc stoi TUZ PRZED kodem kreskowym, jako liczba calkowita
+  if(!qty && (ean||alts.length)){
+    const idx=L.search(/\d{7,}/);
+    if(idx>0){
+      const mb=L.slice(0,idx).match(/(\d{1,4})\s*[|:;.\s]*$/);
+      if(mb){ const q=parseInt(mb[1],10); if(q>0&&q<10000) qty=q; }
+    }
+  }
+  return {ean,alts,qty};
+}
+/* ---- parser tekstu (PDF tekstowy / wklejony) ---- */
+function parseText(text){
+  const out=[];
+  text.split(/\r?\n/).forEach(L=>{
+    const r=lineToItem(L);
+    if(!r||!r.qty) return;
+    if(r.ean){out.push({ean:r.ean,alts:[],qty:r.qty,hint:''});return;}
+    const raw=(L.match(/\d{13}|\d{8}/)||[''])[0];
+    out.push({ean:raw||'',alts:r.alts||[],qty:r.qty,hint:L.trim().slice(0,90)});
+  });
+  return mergeItems(out);
+}
+function mergeItems(arr){
+  const out=[];
+  arr.forEach(x=>{
+    if(!x.qty) return;
+    const e=x.ean&&eanGood(x.ean)?x.ean:'';
+    if(e){ const p=out.find(o=>o.ean===e); if(p){p.qty+=x.qty;return;} }
+    out.push({ean:x.ean||'',alts:x.alts||[],qty:x.qty,hint:x.hint||''});
+  });
+  return out;
+}
+
+/* ---------- 4. poprawki ---------- */
+function finish(res,rowCount){
+  if(captureMode){ const cb=captureMode; captureMode=null; cb(res,rowCount); return; }
+  items=res;
+  if(!items.length){ st('Nie znaleziono żadnych pozycji.<br><br><button class="btn alt" onclick="go(2,false)">Wróć</button>'); return; }
+  drawTable(rowCount); go(4);
+}
+let lastRows=0;
+function drawTable(rowCount){
+  if(rowCount) lastRows=rowCount;
+  const bad=items.filter(i=>!eanGood(i.ean)).length;
+  const nw =items.filter(i=>eanGood(i.ean)&&!eanKnown(i.ean)).length;
+  let n='';
+  if(bad) n+=`<div class="warn"><b>${bad}</b> ${bad==1?'pozycja wymaga':'pozycje wymagają'} kodu — czerwone pola. Pod spodem jest odczyt OCR, przepisz kod z nazwy towaru.</div>`;
+  if(nw)  n+=`<div class="warn" style="background:#fff9e8"><b>${nw}</b> ${nw==1?'kod nie jest':'kody nie są'} w katalogu (żółte). Kod jest poprawny, ale nowy — rzuć okiem.</div>`;
+  if(!bad&&!nw) n=`<div class="ok">Rozpoznano <b>${items.length}</b> pozycji, wszystkie kody znane.</div>`;
+  n+=`<div style="font-size:12px;color:#5a6472;margin:6px 2px">Wierszy w dokumencie: ${lastRows||items.length} &middot; pozycji na liście: ${items.length}</div>`;
+  $('note').innerHTML=n;
+  $('tb').innerHTML=items.map((it,i)=>{
+    const g=eanGood(it.ean), k=g&&eanKnown(it.ean);
+    return `<tr class="${g?(k?'':'new'):'bad'}"><td>${i+1}</td>
+     <td><input value="${it.ean}" data-i="${i}" data-f="ean" inputmode="numeric" placeholder="brak kodu">
+        ${(!g&&it.alts&&it.alts.length)?'<div class="alts">Który to kod?'+it.alts.map(a=>`<button class="altb" data-i="${i}" data-e="${a}">${a}</button>`).join('')+'</div>':''}
+        ${k||!it.hint?'':'<div class="hint">'+it.hint.replace(/</g,'&lt;')+'</div>'}</td>
+     <td class="q"><input value="${it.qty}" data-i="${i}" data-f="qty" inputmode="numeric"></td>
+     <td class="d"><button class="del" data-x="${i}">&#215;</button></td></tr>`;}).join('');
+  $('tb').querySelectorAll('input').forEach(el=>el.onchange=e=>{
+    const i=+e.target.dataset.i;
+    if(e.target.dataset.f=='ean') items[i].ean=e.target.value.replace(/\D/g,'');
+    else items[i].qty=parseInt(e.target.value,10)||1;
+    drawTable();
+  });
+  $('tb').querySelectorAll('.del').forEach(el=>el.onclick=e=>{items.splice(+e.target.dataset.x,1);drawTable();});
+  $('tb').querySelectorAll('.altb').forEach(el=>el.onclick=e=>{
+    const i=+e.target.dataset.i; items[i].ean=e.target.dataset.e; items[i].alts=[]; drawTable();
+  });
+}
+$('bAdd').onclick=()=>{items.push({ean:'',qty:1});drawTable();};
+$('bRaw').onclick=()=>{const r=$('raw');r.style.display=r.style.display=='none'?'block':'none';r.textContent=rawText;};
+$('bCopyRaw').onclick=()=>{ copy(rawText); alert('Odczyt OCR skopiowany do schowka ('+rawText.length+' znakow). Wklej go w rozmowie.'); };
+
+/* ---------- 5. wyslij ---------- */
+function mergeByEan(list){var map={},out=[];list.forEach(function(i){var e=i.ean||'';if(e&&map[e]){map[e].qty+=(+i.qty||0);return;}var c=Object.assign({},i,{qty:(+i.qty||0)});if(e)map[e]=c;out.push(c);});return out;}
+function payload(){ return client.a+'#'+mergeByEan(items).filter(i=>i.ean.length>=8).map(i=>i.ean+';'+i.qty).join('|'); }
+function fireMacro(){
+  fetch(getHook(), {mode:'no-cors'}).catch(()=>{});
+}
+function copy(t){
+  const ta=document.createElement('textarea'); ta.value=t; ta.style.position='fixed'; ta.style.opacity=0;
+  document.body.appendChild(ta); ta.focus(); ta.select();
+  let ok=false; try{ok=document.execCommand('copy');}catch(e){}
+  document.body.removeChild(ta);
+  if(navigator.clipboard) navigator.clipboard.writeText(t).catch(()=>{});
+  return ok;
+}
+$('bSend').onclick=()=>{
+  if(batchEditIndex!==null){
+    batchDocs[batchEditIndex].items=items;
+    batchDocs[batchEditIndex].status = items.length ? 'ok' : 'empty';
+    batchEditIndex=null; render7(); go(7,false);
+    return;
+  }
+  catAdd(items.filter(i=>eanGood(i.ean)).map(i=>i.ean));
+  const p=payload();
+  $('payload').value=p;
+  const ok=copy(p);
+  fireMacro();
+  $('doneMsg').innerHTML=`<b>${items.length} pozycji</b> dla <b>${client.a}</b> ${ok?'skopiowano do schowka. Uruchamiam makro...':'— skopiuj ręcznie z pola niżej.'}`;
+  go(5);
+};
+$('bCopy').onclick=()=>copy($('payload').value);
+$('bDl').onclick=()=>{
+  const b=new Blob([$('payload').value],{type:'text/plain'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(b); a.download='zwrot.txt'; a.click();
+};
+$('bNew').onclick=()=>{items=[];rawText='';client=null;$('q').value='';$('hsub').textContent='';render();hist=[];go(0,false);};
+
+/* ============ TRYB WSADOWY (wiele dokumentow naraz) ============ */
+let batchDocs=[];       // {file,name,client,items,rawText,score,status}
+let batchPickIndex=null, batchEditIndex=null;
+
+function stripLegal(t){
+  return t.replace(/SPÓŁKA|SPOLKA|Z OGRANICZONĄ|ODPOWIEDZIALNOŚCIĄ|ODPOWIEDZIALNOSCIA|JAWNA|CYWILNA|S\.C\.|SP\.\s*Z\s*O\.?O\.?|"|'|,/gi,' ');
+}
+// sieci, gdzie naglowek pokazuje adres CENTRALI, a numer sklepu jest tylko w numerze dokumentu
+/* ---- NAUKA: zapamietywanie recznych poprawek klienta ---- */
+function docFingerprint(text){
+  let t=text.slice(0,500)
+    .replace(/\d{2}[-.\/]\d{2}[-.\/]\d{2,4}/g,' ')   // daty
+    .replace(/\d{4}-\d{2}-\d{2}/g,' ');
+  const pc=(t.match(/\d{2}-\d{3}/)||[''])[0];
+  const words=norm(t).split(' ').filter(w=>w.length>3&&!/^\d+$/.test(w)).slice(0,12);
+  return (pc+'|'+words.join(' ')).trim();
+}
+function learnGet(fp){
+  try{ const m=JSON.parse(localStorage.getItem('zw_learn')||'{}'); return m[fp]||null; }catch(e){ return null; }
+}
+function learnSet(fp,akronim){
+  if(!fp||!akronim) return;
+  try{
+    const m=JSON.parse(localStorage.getItem('zw_learn')||'{}');
+    m[fp]=akronim;
+    localStorage.setItem('zw_learn',JSON.stringify(m));
+  }catch(e){}
+}
+function matchChainStore(text){
+  const U=text.slice(0,1500).toUpperCase();
+  // PSS "Spolem" Bialystok:  ZWD/005 ... -> SKL.NR 5
+  if(/SPO[ŁL]EM|SP[ÓO][ŁL]DZIELNIA SPO[ŻZ]YWC/.test(U)){
+    const m=U.match(/ZWD\s*[\/\s]\s*0*(\d{1,3})/);
+    if(m){
+      const nr=parseInt(m[1],10);
+      const re=new RegExp('SKL\\.?\\s*NR\\s*0*'+nr+'(?!\\d)','i');
+      const hit=CLIENTS.filter(c=>/SPO[ŁL]EM/i.test(c.n)&&re.test(c.n));
+      if(hit.length===1) return hit[0];
+    }
+  }
+  return null;
+}
+function matchClient(text){
+  const fp=docFingerprint(text);
+  const learned=learnGet(fp);
+  if(learned){
+    const c=CLIENTS.find(x=>x.a===learned);
+    if(c) return {client:c, score:100, ambiguous:false, learned:true};
+  }
+  const chain=matchChainStore(text);
+  if(chain) return {client:chain, score:99, ambiguous:false};
+  const H=norm(text.slice(0,1600));
+  let best=null,bestScore=-1,second=-1;
+  for(const c of CLIENTS){
+    let sc=0;
+    const pc=(c.ad.match(/\d{2}-\d{3}/)||[])[0];
+    if(pc && H.includes(norm(pc))) sc+=5;
+    const afterCode=c.ad.split(/\d{2}-\d{3}/)[1]||'';
+    const city=norm(afterCode).trim();
+    if(city && city.length>2 && H.includes(city)) sc+=3;
+    const street=norm(stripLegal(c.ad.split(/\d{2}-\d{3}/)[0]));
+    street.split(' ').filter(w=>w.length>3).slice(0,4).forEach(w=>{ if(H.includes(w)) sc+=1; });
+    const nameToks=norm(stripLegal(c.n)).split(' ').filter(w=>w.length>3);
+    let nHits=0; nameToks.forEach(w=>{ if(H.includes(w)) nHits++; });
+    sc+=Math.min(nHits,4);
+    if(sc>bestScore){ second=bestScore; bestScore=sc; best=c; } else if(sc>second) second=sc;
+  }
+  return {client:best, score:bestScore, ambiguous:(bestScore<6 || (bestScore-second)<3)};
+}
+
+async function extractDoc(file){
+  const ext=file.name.split('.').pop().toLowerCase();
+  rawText='';
+  if(ext=='xlsx'||ext=='xls'||ext=='csv'){
+    const arr=await parseExcel(file,true);
+    return {items:mergeItems(arr), rawText:'[Excel] '+file.name};
+  }
+  if(ext=='pdf'){
+    const p=captureOnce();
+    handlePdf(file);           // sam wywola finish() -> capture (tez dla skanow, przez OCR)
+    const r=await p;
+    return {items:r.items, rawText:rawText};
+  }
+  return {items:[], rawText:''};
+}
+
+async function processBatch(files){
+  go(7);
+  batchDocs=[];
+  render7('Przetwarzam pliki...');
+  for(let i=0;i<files.length;i++){
+    render7(`Plik ${i+1} z ${files.length}: ${files[i].name}`);
+    let items=[],txt='';
+    try{ const r=await extractDoc(files[i]); items=r.items; txt=r.rawText; }
+    catch(err){ txt='[błąd: '+err.message+']'; }
+    const src=txt||files[i].name;
+    const m=matchClient(src);
+    batchDocs.push({
+      file:files[i], name:files[i].name,
+      client: m.client,
+      items, rawText:txt, matchScore:m.score, fp:docFingerprint(src), learned:!!m.learned,
+      status: !items.length ? 'empty' : m.ambiguous ? 'unsure' : 'ok'
+    });
+  }
+  render7();
+}
+
+function render7(msg){
+  $('batchStatus').innerHTML = msg ? `<div class="chip">${msg}</div>` : '';
+  const ok=batchDocs.filter(d=>d.client&&d.items.length).length;
+  $('batchList').innerHTML = batchDocs.map((d,i)=>{
+    const color = d.status=='ok' ? '#0e7a3d' : d.status=='unsure' ? '#c98a1b' : '#b32020';
+    const mark  = d.learned ? ' &#10003;' : '';
+    const label = d.status=='empty' ? 'Nie znaleziono pozycji' :
+                  d.status=='unsure' ? `${d.client.n} — ${d.items.length} poz. (niepewne, sprawdź)` :
+                  `${d.client.n}${mark} — ${d.items.length} poz.`;
+    return `<div class="card" style="border-left:5px solid ${color}">
+      <div data-i="${i}" class="bopen"><b>${d.name}</b><small>${label}</small></div>
+      <button class="altb" data-chg="${i}" style="margin-top:6px">Zmień klienta</button>
+    </div>`;
+  }).join('') || '<div class="card">Brak plików</div>';
+  $('bBatchSend').disabled = ok===0;
+  $('batchList').querySelectorAll('.bopen').forEach(el=>el.onclick=()=>openBatchDoc(+el.dataset.i));
+  $('batchList').querySelectorAll('[data-chg]').forEach(el=>el.onclick=e=>{
+    e.stopPropagation();
+    batchPickIndex=+el.dataset.chg; $('q').value=''; render(); go(1);
+  });
+}
+
+function openBatchDoc(i){
+  const d=batchDocs[i];
+  if(!d.client || d.status=='empty'){ batchPickIndex=i; $('q').value=''; render(); go(1); return; }
+  batchEditIndex=i; client=d.client; items=d.items; rawText=d.rawText;
+  $('cli4').innerHTML=`<b>${client.n}</b><br><span class="ak">${client.a}</span> &nbsp;${client.ad}`;
+  drawTable(d.items.length);
+  go(4);
+}
+
+$('bBatchPick').onclick=()=>$('fBatch').click();
+$('fBatch').onchange=e=>{ if(e.target.files.length) processBatch([...e.target.files]); };
+$('bBatchAddMore').onclick=()=>$('fBatch').click();
+
+$('bBatchSend').onclick=()=>{
+  const good=batchDocs.filter(d=>d.client&&d.items.filter(i=>i.ean.length>=8).length);
+  good.forEach(d=>catAdd(d.items.filter(i=>eanGood(i.ean)).map(i=>i.ean)));
+  const p=good.map(d=>d.client.a+'#'+mergeByEan(d.items).filter(i=>i.ean.length>=8).map(i=>i.ean+';'+i.qty).join('|')).join('@@');
+  $('payload').value=p;
+  const ok=copy(p);
+  fireMacro();
+  const totalItems=good.reduce((s,d)=>s+d.items.length,0);
+  $('doneMsg').innerHTML=`<b>${good.length} klientów, ${totalItems} pozycji</b> ${ok?'skopiowano do schowka. Uruchamiam makro...':'— skopiuj ręcznie z pola niżej.'}`;
+  go(5);
+};
+
+/* ---------- USTAWIENIA (ekran 9) ---------- */
+const DEFAULT_HOOK="https://trigger.macrodroid.com/568786bb-a7ce-4976-9fd2-a1f815f28831/zwroty";
+function getHook(){ return localStorage.getItem('zw_hook') || DEFAULT_HOOK; }
+function getSendMode(){ return localStorage.getItem('zw_sendmode') || 'buffer'; }
+function cfgLabel(){ $('cfgSendLbl').textContent = $('cfgSend').checked ? 'Wyślij do firmy' : 'Zapis do bufora'; }
+function cfgLoad(){
+  $('cfgHook').value = getHook();
+  $('cfgSend').checked = (getSendMode()==='send');
+  cfgLabel();
+  $('cfgMsg').style.display='none';
+}
+$('bCfg').onclick=()=>{ cfgLoad(); go(9); };
+$('cfgSend').onchange=cfgLabel;
+$('cfgSave').onclick=()=>{
+  const h=$('cfgHook').value.trim();
+  localStorage.setItem('zw_hook', h || DEFAULT_HOOK);
+  localStorage.setItem('zw_sendmode', $('cfgSend').checked ? 'send' : 'buffer');
+  cfgLabel();
+  $('cfgMsg').style.display='block';
+};
+
+</script>
+</body>
+</html>
