@@ -835,7 +835,7 @@ $('bBatchSend').onclick=()=>{
   $('payload').value=p;
   const ok=copy(p);
   fireMacro();
-  const totalItems=good.reduce((s,d)=>s+d.items.length,0);
+  const totalItems=good.reduce((s,d)=>s+mergeByEan(d.items).filter(i=>i.ean.length>=8).length,0);
   $('doneMsg').innerHTML=`<b>${good.length} klientów, ${totalItems} pozycji</b> ${ok?'skopiowano do schowka. Uruchamiam makro...':'— skopiuj ręcznie z pola niżej.'}`;
   go(5);
 };
